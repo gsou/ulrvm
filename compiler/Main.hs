@@ -1,25 +1,36 @@
 {-# LANGUAGE FlexibleContexts, TemplateHaskell #-}
 module Main where
 
+import System.Environment (getArgs)
+
 import Lexer
 import Parser
 import Generate
 
--- TODO Proper argument parsing
 main :: IO ()
 main = do
-  str <- getContents
-  let sn = "ulrvm"
-  {-
-  case lexer sn str of
-    Left e -> print e
-    Right lex -> mapM_ print lex
-  -}
-  case lexer sn str >>= parser sn of
-    Left e -> print e
-    Right ast -> case compile ast of
-      Right (st, header) -> do
-        writeFile "system.map.h" header
-        writeFile "system.def.h" $ show $ genSystem ast st
-      Left err -> print err
-  
+  args <- getArgs
+  case args of
+    ["-r", sys, sn] -> do
+      system <- read <$> readFile sys
+      str <- readFile sn
+      case lexer sn str >>= parser sn of
+        Left e -> print e
+        Right ast -> case recompile system ast of
+          Right (_, source) -> putStrLn source
+          Left err -> print err
+    [sn] -> do
+      str <- readFile sn
+      case lexer sn str >>= parser sn of
+        Left e -> print e
+        Right ast -> case compile ast of
+          Right (st, header) -> do
+            writeFile "system.map.h" header
+            writeFile "system.def.h" $ show $ genSystem ast st
+          Left err -> print err
+    _ -> putStrLn usage
+ where usage =
+         "Compile source:\n" ++
+         "    ulrvmc source\n" ++
+         "Recompile symbol:\n" ++
+         "    ulrvmc -r symbol source\n"

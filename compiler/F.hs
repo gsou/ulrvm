@@ -23,6 +23,7 @@ data Err = CantDefSymbol String
          | InvalidOp String Bool
          | InvalidVar String
          | TypeMismatch TypeR TypeR
+         | SymbolMismatch String String
          | OperatorType String (Maybe TypeR) (Maybe TypeR)
          | CantTypeCheck String
          | ConversionError TypeR TypeR
@@ -38,6 +39,7 @@ instance Show Err where
   show (InvalidOp s b) = "Invalid " ++ (if b then "binary" else "unary") ++ " operator (" ++ s ++ ")"
   show (InvalidVar s) = "Can't find variable " ++ s
   show (TypeMismatch t u) = "Type mismatch expecting " ++ show t ++ " got " ++ show u
+  show (SymbolMismatch t u) = "Symbol mismatch expecting " ++ show t ++ " got " ++ show u
   show (CantTypeCheck s) = "Can't typecheck expression " ++ s
   show (OperatorType op (Just fst) Nothing) = "Operator " ++ op ++ " can't take type " ++ show fst
   show (OperatorType op (Just fst) (Just snd)) = "Operator " ++ op ++ " can't take types " ++ show fst ++ " and " ++ show snd
