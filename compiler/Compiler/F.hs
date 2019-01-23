@@ -1,8 +1,8 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
 {-| The F monad and its derivatives, with operations -}
-module F where
+module Compiler.F where
 
-import AST
+import Compiler.AST
 
 import Data.Int (Int16)
 import qualified Data.Map as M
@@ -65,9 +65,26 @@ data System = System {
  } deriving (Show, Read, Eq)
 makeLenses ''System
 
--- | The monad generating
-type F = RWST (Maybe System) String VMState (Except Err)
+-- | The monad for standard compilation generating
+type F = RWST () String VMState (Except Err)
+
+-- | The monad used for recompilation
+type R = RWST System [FIR] VMState (Except Err)
+
+-- | Get the underlying system
+class MonadSystem m where
+  askSystem :: m (Maybe System)
+
+instance MonadSystem F where
+  askSystem = pure Nothing
+
+instance MonadSystem R where
+  askSystem = pure <$> ask
+
+class (MonadSystem m, MonadState VMState m, MonadError Err m) => MonadCompile m where
+instance MonadCompile F where
+instance MonadCompile R where
 
 -- | Double layer monad used when generating from Hi level c code
 type HFState = (Int16, [(TypeR, String)])
-type HF = RWST (TypeR, [(TypeR, String)]) [IR] HFState F
+type HF m = RWST (TypeR, [(TypeR, String)]) [IR] HFState m

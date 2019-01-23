@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 -- | Phase one of compilation
-module Lexer (lexer, KW(..), Token(..), TokenPos) where
+module Compiler.Lexer (lexer, KW(..), Token(..), TokenPos) where
 
 import Data.Char (toLower, toUpper)
 import Data.Int (Int16)
@@ -8,7 +8,7 @@ import Numeric (readHex)
 import Text.Parsec
 import Text.Read (readMaybe)
 
-import AST
+import Compiler.AST
 
 -- | Keywords
 data KW = KWIf | KWElse | KWWhile | KWReturn | KWDo

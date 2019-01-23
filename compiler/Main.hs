@@ -3,9 +3,11 @@ module Main where
 
 import System.Environment (getArgs)
 
-import Lexer
-import Parser
-import Generate
+import Compiler.Lexer
+import Compiler.Parser
+import Compiler.Generate
+
+import Flasher.Class
 
 main :: IO ()
 main = do
@@ -17,7 +19,7 @@ main = do
       case lexer sn str >>= parser sn of
         Left e -> print e
         Right ast -> case recompile system ast of
-          Right (_, source) -> putStrLn source
+          Right (_, source) -> mapM_ (flash DebugRaw) source
           Left err -> print err
     [sn] -> do
       str <- readFile sn

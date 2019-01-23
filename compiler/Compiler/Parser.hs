@@ -1,11 +1,11 @@
 -- | Phase two of compilation
-module Parser (parser) where
+module Compiler.Parser (parser) where
 
 import Control.Lens
 import Text.Parsec hiding (satisfy)
 
-import Lexer
-import AST
+import Compiler.Lexer
+import Compiler.AST
 
 -- | Parse a token list
 parser :: SourceName -> [TokenPos] -> Either ParseError AST

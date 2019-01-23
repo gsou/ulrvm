@@ -1,8 +1,9 @@
+{-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction #-}
 {-| Typechecker and expression generator -}
-module Typechecker where
+module Compiler.Typechecker where
 
-import F
-import AST
+import Compiler.F
+import Compiler.AST
 
 import Data.List (find, findIndex)
 import Data.Maybe (fromJust)
@@ -92,7 +93,7 @@ pushExpr' (Cast typ Nothing) = pure (Just typ)
 pushExpr' (Cast a (Just b)) = throwError $ ConversionError a b
 pushExpr' (InlineAsmExp ir) = Nothing <$ tell ir
 
-copyAtom :: String -> HF TypeR
+copyAtom :: (MonadError Err m) => String -> HF m TypeR
 copyAtom s = do
   ix <- uses _2 (findIndex ((s==).snd))
   case ix of
@@ -103,7 +104,7 @@ copyAtom s = do
       pure typ
     Nothing -> throwError $ InvalidVar s
 
-pasteAtom :: String -> TypeR -> HF TypeR
+pasteAtom :: (MonadError Err m) => String -> TypeR -> HF m TypeR
 pasteAtom s tp = do
   ix <- uses _2 (findIndex ((s==).snd))
   case ix of

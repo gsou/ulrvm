@@ -14,7 +14,7 @@ cabal-version:       >=1.10
 
 executable ulrvmc
   main-is:             Main.hs
-  other-modules:       Lexer, Parser, Generate, AST, F, Typechecker
+  other-modules:       Compiler.Lexer, Compiler.Parser, Compiler.Generate, Compiler.AST, Compiler.F, Compiler.Typechecker
   -- other-extensions:
   build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec
   -- hs-source-dirs:

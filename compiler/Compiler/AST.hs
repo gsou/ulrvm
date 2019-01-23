@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 -- | Abstract representation of the code
-module AST where
+module Compiler.AST where
 
 import Data.Int (Int8, Int16)
 import Control.Lens
@@ -56,6 +56,11 @@ packable x = x `notElem` [Jump, Jnz, Call, Ccall, Ret, Zret, End]
 
 -- * Abstract data
 
+-- | Flashable intermediate representation
+data FIR = Run Int16 -- ^ Execute a function
+         | Flash Int16 [Int16] -- ^ Flash a page
+  deriving (Show, Read, Eq)
+
 -- | Lower intermediate representation for a code stream
 data LIR = LabelLIR String Bool
          | InstLIR Inst
@@ -85,6 +90,7 @@ sizeOf Num   = 1
 sizeOf Num32 = 2
 
 
+
 -- | High level Expression information
 data ExpRF a = Atom String
           | Constant Prim
@@ -97,7 +103,7 @@ data ExpRF a = Atom String
           | InlineAsmExp [IR]
   deriving (Show, Read, Eq, Functor, Foldable, Traversable)
 
--- | Fixed point 
+-- | Fixed point
 newtype Fx f = Fx { unFix :: (f (Fx f)) }
 
 type ExpR = Fx ExpRF
