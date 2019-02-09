@@ -16,6 +16,6 @@ executable ulrvmc
   main-is:             Main.hs
   other-modules:       Compiler.Lexer, Compiler.Parser, Compiler.Generate, Compiler.AST, Compiler.F, Compiler.Typechecker
   -- other-extensions:
-  build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec
+  build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec, bytestring >= 0.10, serialport
   -- hs-source-dirs:
   default-language:    Haskell2010

@@ -48,7 +48,7 @@ lowerHIR' (FunDef returnType s arg stmt) = fmap ((LabelIR s True :) . (pushAll (
            Just j -> if (j == t)
              then performPushType t
              else throwError $ TypeMismatch t j
-           _ -> performPushType t -- TODO Here there is a possibility of a type error
+           _ -> throwError $ CantTypeCheck "implicit cast on declaration" --performPushType t
          _1 += sizeOf t
          _2 %= ((t,s) :)
        genStmt (If cond t e) = do

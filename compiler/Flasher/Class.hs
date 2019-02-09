@@ -23,3 +23,4 @@ data DebugRaw = DebugRaw
 
 instance Reprog DebugRaw where
   flash DebugRaw (Flash ix code) = putStrLn $ "++" ++ show ix ++ "+ " ++ show (length code) ++ ' ': intercalate " " (map (('+':) . show) code) ++ " +"
+  flash DebugRaw (Run _) = pure ()

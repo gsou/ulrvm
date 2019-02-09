@@ -7,6 +7,7 @@ import Compiler.AST
 
 import Data.List (find, findIndex)
 import Data.Maybe (fromJust)
+import Data.Bits
 
 import Control.Lens
 import Control.Monad
@@ -69,8 +70,10 @@ pushExpr' (Atom s) = do
   if s == "#"
      then pure (Nothing)
      else Just <$> copyAtom s
-pushExpr' (Constant (I a)) = Just Num <$ tell [InstIR $ Lit $ I a]
-pushExpr' (Constant (P a)) = Nothing  <$ tell [InstIR $ Lit $ P a]
+pushExpr' (Constant (Primitive (I a))) = Just Num <$ tell [InstIR $ Lit $ I a]
+pushExpr' (Constant (Primitive (P a))) = Nothing  <$ tell [InstIR $ Lit $ P a]
+pushExpr' (Constant (LongLit num)) = Just Num32  <$ tell [InstIR $ Lit $ I $ fromIntegral $ (num `shift` (-16)) .&. 0xFFFF,
+                                                          InstIR $ Lit $ I $ fromIntegral $ num .&. 0xFFFF]
 pushExpr' (UnaryOp "-" (Just Num)) = Just Num <$ tell [InstIR $ Lit (I (-1)), InstIR Mul]
 pushExpr' (UnaryOp o a) = throwError $ OperatorType o a Nothing
 pushExpr' (BinaryOp (Just Num) "==" (Just Num)) = Just Num <$ tell [InstIR Eq]
@@ -78,6 +81,7 @@ pushExpr' (BinaryOp (Just Num) "!=" (Just Num)) = Just Num <$ tell [InstIR Neq]
 pushExpr' (BinaryOp (Just Num) ">"  (Just Num)) = Just Num <$ tell [InstIR Gt]
 pushExpr' (BinaryOp (Just Num) "<"  (Just Num)) = Just Num <$ tell [InstIR Lt]
 pushExpr' (BinaryOp (Just Num) "+"  (Just Num)) = Just Num <$ tell [InstIR Add]
+-- TODO num32 functions
 pushExpr' (BinaryOp (Just Num) "-"  (Just Num)) = Just Num <$ tell [InstIR Sub]
 pushExpr' (BinaryOp (Just Num) "*"  (Just Num)) = Just Num <$ tell [InstIR Mul]
 pushExpr' (BinaryOp (Just Num) "/"  (Just Num)) = Just Num <$ tell [InstIR Divmod, InstIR Drop]
@@ -90,9 +94,11 @@ pushExpr' (Assign s e) = case e of
   Nothing -> throwError $ CantTypeCheck $ "that assigns to " ++ s
 -- TODO WARN Here 
 pushExpr' (Cast typ Nothing) = pure (Just typ)
+pushExpr' (Cast typ (Just typ2)) | typ == typ2 = pure (Just typ)
+pushExpr' (Cast Num32 (Just Num)) = Just Num32 <$ tell [InstIR $ Lit $ I 0, InstIR Swap]
 pushExpr' (Cast a (Just b)) = throwError $ ConversionError a b
 pushExpr' (InlineAsmExp ir) = Nothing <$ tell ir
-
+  
 copyAtom :: (MonadError Err m) => String -> HF m TypeR
 copyAtom s = do
   ix <- uses _2 (findIndex ((s==).snd))
@@ -111,7 +117,7 @@ pasteAtom s tp = do
     Just i  -> do
       typ <- fromJust . fmap fst <$> uses _2 (find ((s==).snd))
       unless (tp == typ) $ throwError $ TypeMismatch typ tp
-      offset <- uses _2 (pred . sum . map (sizeOf . fst) . take (i + 1))
+      offset <- uses _2 (sum . map (sizeOf . fst) . take i)
       tell [InstIR $ Lit $ I $ sizeOf typ, InstIR $ Lit $ I offset, InstIR Paste]
       pure typ
     Nothing -> throwError $ InvalidVar s

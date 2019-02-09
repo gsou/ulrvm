@@ -2,7 +2,7 @@
 -- | Abstract representation of the code
 module Compiler.AST where
 
-import Data.Int (Int8, Int16)
+import Data.Int (Int8, Int16, Int32)
 import Control.Lens
 import Control.Lens.TH
 
@@ -90,10 +90,14 @@ sizeOf Num   = 1
 sizeOf Num32 = 2
 
 
+data Lit =
+   Primitive Prim
+ | LongLit Int32
+  deriving (Show, Read, Eq)
 
 -- | High level Expression information
 data ExpRF a = Atom String
-          | Constant Prim
+          | Constant Lit
           | UnaryOp String a
           | BinaryOp a String a
           | CCall String [a]

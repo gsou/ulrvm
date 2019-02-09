@@ -1,5 +1,9 @@
 #include "vm/vm.h"
 
+#ifdef DEBUG_VM 
+#include <stdio.h>
+#endif
+
 ////////////////
 /// VM STATE ///
 ////////////////
@@ -120,7 +124,7 @@ static void inst_paste() {
     int offset = TOS; inst_drop();
     int len = TOS; inst_drop();
     for(int i = 0; i < len; i++) {
-        address[rp-(offset + i)] = data[sp-i];
+        address[rp-(offset + i)] = data[sp-len+1+i];
     }
     DEBUG_VM(VM_PASTE);
 }
@@ -237,7 +241,15 @@ bool vmRun(CELL from){
 
 CELL vmTOS() {return TOS;}
 void vmLit(CELL c) {sp++; TOS=c;}
+void vmLit32(int32_t c) {sp++; TOS=c>>16; sp++; TOS=c&0xFFFF; }
 CELL vmPop() {CELL r = TOS; if(sp > 0) sp--; return r;}
+int32_t vmPop32() {
+    int32_t ret;
+    ((UCELL*)(&ret))[0] = *((UCELL*)data+sp);
+    ((CELL*)(&ret))[1] = *((CELL*)data+sp-1);
+    if(sp > 0) sp--;  if(sp > 0) sp--;
+    return ret;
+}
 CELL vmNOS() {return NOS;}
 
 void vmNatHandler(void (*h)(void)) {

@@ -30,6 +30,11 @@
 #define Hook2(name)                                                     \
     HookCodeDef(name) void name (CELL arg1, CELL arg2) { vmLit(arg1); vmLit(arg2); vmHook(name) }
 
+#define Hook_1_2(name)                                                     \
+    HookCodeDef(name) int32_t name (CELL arg1) { vmLit(arg1); vmHook(name, main); return vmPop32(); }
+#define Hook_2_2(name)                                                  \
+    HookCodeDef(name) int32_t name (int32_t arg1) { vmPush32(arg1); vmHook(name, main); return vmPop32(); }
+
 #define Sym(name, sym) symbolTable[ ( name ## _sym_ ## sym ) ]
 
 //#define Mem(name, sym, type) (((type) *) name ## _source + name ## _sym_ ## sym)

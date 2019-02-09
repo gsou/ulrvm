@@ -1,9 +1,9 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction #-}
 -- | Phase one of compilation
 module Compiler.Lexer (lexer, KW(..), Token(..), TokenPos) where
 
 import Data.Char (toLower, toUpper)
-import Data.Int (Int16)
+import Data.Int (Int16, Int32)
 import Numeric (readHex)
 import Text.Parsec
 import Text.Read (readMaybe)
@@ -23,7 +23,7 @@ data Token =
    -- C like level
   | TypeT TypeR -- ^ A type value
   | AtomT String -- ^ Atom
-  | ConstT Prim
+  | ConstT Lit
   | BracketL -- ^ (
   | BracketR -- ^ )
   | ExprSep -- ^ ,
@@ -84,9 +84,11 @@ rawToken =
   <|> (Just BlockL <$ char '{')
   <|> ((Just . Operator) <$> many1 (oneOf "+-<>?:!="))
   <|> (Just BlockR <$ char '}')
-  <|> try (string "0x" *> fmap (Just . ConstT . I . fst . head . readHex) (many1 hexDigit))
-  <|> ((Just . ConstT . I) <$> number )
-  <|> (char '&' *> fmap (Just . ConstT . P) symbol)
+  <|> try ((string "0x" *> fmap (Just . ConstT . LongLit . fst . head . readHex) (many1 hexDigit)) <* oneOf "lL")
+  <|> try (string "0x" *> fmap (Just . ConstT . Primitive . I . fst . head . readHex) (many1 hexDigit))
+  <|> try (((Just . ConstT . LongLit) <$> number) <* oneOf "lL")
+  <|> ((Just . ConstT . Primitive . I) <$> number )
+  <|> (char '&' *> fmap (Just . ConstT . Primitive . P) symbol)
   <|> (Just AsmStart <$ string "@{")
   -- End
   <|> pure Nothing
