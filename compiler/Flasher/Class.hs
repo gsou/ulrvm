@@ -1,4 +1,4 @@
-
+{-# LANGUAGE FlexibleInstances#-}
 -- General utilities to flash recompiled code to targets
 module Flasher.Class where
 
@@ -9,6 +9,9 @@ import Compiler.AST
 class Reprog flasher where
   -- Flash bytecode to a targetl
   flash :: flasher -> FIR -> IO ()
+
+instance Reprog (FIR -> IO ()) where
+  flash = id
 
 -- * Debugging flashers
 
@@ -24,3 +27,4 @@ data DebugRaw = DebugRaw
 instance Reprog DebugRaw where
   flash DebugRaw (Flash ix code) = putStrLn $ "++" ++ show ix ++ "+ " ++ show (length code) ++ ' ': intercalate " " (map (('+':) . show) code) ++ " +"
   flash DebugRaw (Run _) = pure ()
+

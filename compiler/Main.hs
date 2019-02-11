@@ -10,6 +10,7 @@ import Compiler.Generate
 
 import Flasher.Class
 import Flasher.Serial
+import Flasher.CAN
 
 import Control.Monad
 
@@ -22,6 +23,7 @@ main = do
       src <- getLine
       recompWith (FlashSerial s) sys $ "@repl void main() { " ++ src ++ "}"
     ["-s", port, baud, sys, sn] -> S.withSerial port (S.defaultSerialSettings {S.commSpeed = genCS baud}) $ \s -> recompWith (FlashSerial s) sys =<< readFile sn
+    ["-c", canId, port, baud, sys, sn] -> S.withSerial port (S.defaultSerialSettings {S.commSpeed = genCS baud}) $ \s -> recompWith (SerialCANAdapter (read canId) s) sys =<< readFile sn
     ["-r", sys, sn] -> recompWith DebugRaw sys =<< readFile sn
     [sn] -> do
       str <- readFile sn
@@ -39,6 +41,7 @@ main = do
          "Recompile symbol:\n" ++
          "    ulrvmc -r symbol source\n" ++
          "    ulrvmc -s /dev/ttyACM0 9600 symbol source\n" ++
+         "    ulrvmc -c <canid> /dev/ttyACM0 9600 symbol source\n" ++
          "    ulrvmc -i /dev/ttyACM0 9600 symbol\n"
        recompWith fl sys str = do
          system <- read <$> readFile sys
