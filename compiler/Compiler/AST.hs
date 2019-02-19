@@ -80,6 +80,7 @@ data IR = LabelIR String Bool -- ^ A label creation request
 -- | High level type information
 data TypeR = Num -- ^ Native word type
            | Num32 -- ^ 32 bit integer type
+           | Num64 -- ^ 64 bit integer type
            -- | FunPtr 
            | Void -- ^ Empty type
   deriving (Show, Read, Eq)
@@ -88,6 +89,7 @@ data TypeR = Num -- ^ Native word type
 sizeOf Void  = 0
 sizeOf Num   = 1
 sizeOf Num32 = 2
+sizeOf Num64 = 4
 
 
 data Lit =

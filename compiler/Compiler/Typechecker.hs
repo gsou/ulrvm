@@ -81,6 +81,7 @@ pushExpr' (BinaryOp (Just Num) "!=" (Just Num)) = Just Num <$ tell [InstIR Neq]
 pushExpr' (BinaryOp (Just Num) ">"  (Just Num)) = Just Num <$ tell [InstIR Gt]
 pushExpr' (BinaryOp (Just Num) "<"  (Just Num)) = Just Num <$ tell [InstIR Lt]
 pushExpr' (BinaryOp (Just Num) "+"  (Just Num)) = Just Num <$ tell [InstIR Add]
+-- TODO num64 functions
 -- TODO num32 functions
 pushExpr' (BinaryOp (Just Num) "-"  (Just Num)) = Just Num <$ tell [InstIR Sub]
 pushExpr' (BinaryOp (Just Num) "*"  (Just Num)) = Just Num <$ tell [InstIR Mul]
@@ -92,13 +93,14 @@ pushExpr' (CCall d types) = Nothing <$ tell [CallIR d]
 pushExpr' (Assign s e) = case e of
   Just e  -> Just <$> pasteAtom s e
   Nothing -> throwError $ CantTypeCheck $ "that assigns to " ++ s
--- TODO WARN Here 
+-- TODO WARN Here
 pushExpr' (Cast typ Nothing) = pure (Just typ)
 pushExpr' (Cast typ (Just typ2)) | typ == typ2 = pure (Just typ)
 pushExpr' (Cast Num32 (Just Num)) = Just Num32 <$ tell [InstIR $ Lit $ I 0, InstIR Swap]
+pushExpr' (Cast Num64 (Just Num)) = Just Num64 <$ tell [InstIR $ Push, InstIR $ Lit $ I 0, InstIR $ Lit $ I 0, InstIR $ Lit $ I 0, InstIR Pop]
 pushExpr' (Cast a (Just b)) = throwError $ ConversionError a b
 pushExpr' (InlineAsmExp ir) = Nothing <$ tell ir
-  
+
 copyAtom :: (MonadError Err m) => String -> HF m TypeR
 copyAtom s = do
   ix <- uses _2 (findIndex ((s==).snd))

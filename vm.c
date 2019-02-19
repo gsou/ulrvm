@@ -8,40 +8,39 @@
 /// VM STATE ///
 ////////////////
 
-// Instrucitons
-// Add an instruction: Here, handler table, compiler index
+// Instructions
 enum vm_opcode {
-    /* 0 */  VM_NOP,
-    /* 1 */  VM_LIT,
-    /* 2 */  VM_DUP,
-    /* 3 */  VM_DROP,
-    /* 4 */  VM_SWAP,
-    /* 5 */  VM_PUSH,
-    /* 6 */  VM_POP,
-    /* 7 */  VM_JUMP,
-    /* 8 */  VM_JNZ,
-    /* 9 */  VM_CALL,
-    /* A */  VM_CCALL,
-    /* B */  VM_NAT,
-    /* C */  VM_RETURN,
-    /* D */  VM_EQ,
-    /* E */  VM_NEQ,
-    /* F */  VM_LT,
-    /* 10 */ VM_GT,
-    /* 11 */ VM_COPY,
-    /* 12 */ VM_PASTE,
-    /* 13 */ VM_FETCH,
-    /* 14 */ VM_STORE,
-    /* 15 */ VM_ADD,
-    /* 16 */ VM_SUB,
-    /* 17 */ VM_MUL,
-    /* 18 */ VM_DIVMOD,
-    /* 19 */ VM_AND,
-    /* 1A */ VM_OR,
-    /* 1B */ VM_XOR,
-    /* 1C */ VM_SHIFT,
-    /* 1D */ VM_ZRET,
-    /* 1E */ VM_END
+    /* 0 */  VM_NOP,    /* do nothing */
+    /* 1 */  VM_LIT,    /* insert next 16bit word in the source on the stack */
+    /* 2 */  VM_DUP,    /* duplicate the word on top of the stack */
+    /* 3 */  VM_DROP,   /* drop the word on top of the stack */
+    /* 4 */  VM_SWAP,   /* swap the two words on top of the stack */
+    /* 5 */  VM_PUSH,   /* push the word on top of the data stack to the address stack */
+    /* 6 */  VM_POP,    /* pop the word on top of the address stack to the data stack */
+    /* 7 */  VM_JUMP,   /* Jump to the location in the word on top of the stack */
+    /* 8 */  VM_JNZ,    /* Jump to the location in the word on top of the stack if the second one is not zero */
+    /* 9 */  VM_CALL,   /* Call to the location on top of the stack */
+    /* A */  VM_CCALL,  /* Call to the location on top of the stack if the second one is not zero */
+    /* B */  VM_NAT,    /* Call the native function whose identifier is the word on the top of the stack */
+    /* C */  VM_RETURN, /* RET */
+    /* D */  VM_EQ,     /* Equate (and consume) the two first words on the stack, then push a boolean */
+    /* E */  VM_NEQ,    /* N-Equate (and consume) the two first words on the stack, then push a boolean */
+    /* F */  VM_LT,     /* Compare (and consume) the two first words on the stack, then push a boolean */
+    /* 10 */ VM_GT,     /* Compare (and consume) the two first words on the stack, then push a boolean */
+    /* 11 */ VM_COPY,   /* Put the (first word on the stack)th value of the addres stack on the stack */
+    /* 12 */ VM_PASTE,  /* Put (NOS) word from the stack onto the adress stack, starting from the (TOS)th.
+    /* 13 */ VM_FETCH,  /* RESERVED */
+    /* 14 */ VM_STORE,  /* RESERVED */
+    /* 15 */ VM_ADD,    /* Add and consume the first two words on the stack and put the result */
+    /* 16 */ VM_SUB,    /* Subtract and consume the first two words on the stack and put the result */
+    /* 17 */ VM_MUL,    /* Multiply and consume the first two words on the stack and put the result */
+    /* 18 */ VM_DIVMOD, /* TOS = NOS / TOS; NOS = NOS % TOS; */
+    /* 19 */ VM_AND,    /* Perform bitwise and NOS & TOS */
+    /* 1A */ VM_OR,     /* Perform bitwise or NOS | TOS */
+    /* 1B */ VM_XOR,    /* Perform bitwise xor NOS ^ TOS */
+    /* 1C */ VM_SHIFT,  /* Perform NOS >> TOS */
+    /* 1D */ VM_ZRET,   /* Return if TOS is 0 */
+    /* 1E */ VM_END     /* End the current VM execution */
 };
 #define NUM_OPS VM_END + 1
 
@@ -52,7 +51,6 @@ enum vm_opcode {
 static CELL sp; // Stack pointer
 static CELL rp; // Adress pointer
 static CELL ip; // Instruction pointer
-static CELL mp; // memory location index pointer
 
 // The stacks
 static CELL data[DATA_STACK_DEPTH]; 

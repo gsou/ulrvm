@@ -1,6 +1,6 @@
 
 name:                compiler
-version:             0.1.0.0
+version:             0.1.1.0
 -- synopsis:
 -- description:
 license-file:        ../LICENSE
@@ -16,6 +16,6 @@ executable ulrvmc
   main-is:             Main.hs
   other-modules:       Compiler.Lexer, Compiler.Parser, Compiler.Generate, Compiler.AST, Compiler.F, Compiler.Typechecker
   -- other-extensions:
-  build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec, bytestring >= 0.10, serialport
+  build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec, bytestring >= 0.10, serialport, split
   -- hs-source-dirs:
   default-language:    Haskell2010

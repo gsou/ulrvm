@@ -16,5 +16,5 @@ int32 main(int n) {
         b = (int32)add32(tmp,b);
         n = n - 1;
     } while(n > 0);
-    return (int32) b;
+    return b;
 }

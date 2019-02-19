@@ -206,7 +206,7 @@ compile ast = compileAST ast genSystemMap cont
           let it = (++"}") . ('{':) . intercalate ", " . map (("(CELL*)" ++) . (++ "_source")) . sort . map (view unitName) $ ast^.comps
           telln $ "#define defineSymbolTable() CELL symbolTable[] = " ++ ai
           telln $ "#define defineImageTable() CELL* imageTable[] = " ++ it
-
+          
 -- | Default recompiler sequence
 recompile :: System -> AST -> Either Err (VMState, [FIR])
 recompile _ (AST (a:_) _) = Left (CantDefSymbol $ fst a)

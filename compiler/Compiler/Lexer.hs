@@ -97,6 +97,7 @@ rawToken =
          pure $ Just $ case str of
            "int" -> TypeT Num
            "int32" -> TypeT Num32
+           "int64" -> TypeT Num64
            "void" -> TypeT Void
            "if" -> Keyword KWIf
            "else" -> Keyword KWElse
