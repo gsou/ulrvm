@@ -12,12 +12,15 @@ import Flasher.Class
 import Flasher.Serial
 import Flasher.CAN
 
+import Interface.Cli
+
 import Control.Monad
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
+    ["-d", port, baud] -> initInterface port (S.defaultSerialSettings {S.commSpeed = genCS baud})
     ["-i", port, baud, sys] -> S.withSerial port (S.defaultSerialSettings {S.commSpeed = genCS baud}) $ \s -> forever $ do
       putStr "> "
       src <- getLine

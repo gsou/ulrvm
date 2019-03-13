@@ -35,7 +35,7 @@ instance Reprog SerialCANAdapter where
     S.send s $ pack $ "++" ++ show canId ++ "+2" ++ formatI16 ix ++ "\n"
     S.flush s
     threadDelay 2000
-    receive s canId ""
+    --receive s canId ""
   flash (SerialCANAdapter canId s) (Run i) = do
     S.send s $ pack $ "++" ++ show canId ++ "+2" ++ formatI16 i ++ "\n"
     S.flush s
@@ -44,20 +44,3 @@ instance Reprog SerialCANAdapter where
 formatI16 :: (Show a, Num a, Bits a) => a -> String
 formatI16 i = "+" ++ show (i.&.0xFF) ++ "+" ++ show ((i `shift` (-8)).&.0xFF)
 
--- TODO cleanup and fix
-receive s ix str = do
-  str <- (dropWhile (/= ':') . (str++) . unpack) <$> S.recv s 1024
-  case str of
-    ':':ls -> case (checkLength . readHex . dropWhile (==' ')) <=< checkId $ readHex ls of
-      Just (len, lls) -> let payload =
-                               map fst $ concatMap readHex $
-                               chunksOf 2 $ take (len*2) $
-                               dropWhile (== ' ') lls
-         in putStr "*" >> print payload >> putStrLn "*"
-      _ -> receive s ix ls
-    _ -> receive s ix str
-  where
-    checkId [(id, lls)] | id == ix = Just lls
-    checkId _ = Nothing
-    checkLength [(len, lls)] | len `elem` [0..7] = Just (len, lls)
-    checkLength _ = Nothing
