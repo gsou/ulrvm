@@ -17,6 +17,6 @@ executable ulrvmc
   ghc-options: -threaded -O2
   other-modules:       Compiler.Lexer, Compiler.Parser, Compiler.Generate, Compiler.AST, Compiler.F, Compiler.Typechecker
   -- other-extensions:
-  build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec, bytestring >= 0.10, serialport, split, brick, time, netwire, vty, array, conduit
+  build-depends:       base >=4.12 && <4.13, lens, mtl, containers, parsec, bytestring >= 0.10, split, time, array, serialport
   -- hs-source-dirs:
   default-language:    Haskell2010

@@ -66,7 +66,7 @@ data LIR = LabelLIR String Bool
          | InstLIR Inst
          | PackedLIR Inst Inst Inst
          | RawLIR Int16
-  deriving (Show, Read, Eq)
+ deriving (Show, Read, Eq)
 
 -- | Upper intermediate representation for a code stream
 data IR = LabelIR String Bool -- ^ A label creation request
