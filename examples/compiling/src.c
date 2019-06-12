@@ -1,8 +1,8 @@
-add32={
+extern fn int32 add32(int32, int32) {{
     int32_t num1 = vmPop32();
     int32_t num2 = vmPop32();
     vmLit32(num1+num2);
-}
+}}
 
 @fibonacci
 int32 main(int n) {
@@ -13,7 +13,7 @@ int32 main(int n) {
     do {
         tmp = a;
         a = b;
-        b = (int32)add32(tmp,b);
+        b = add32(tmp,b);
         n = n - 1;
     } while(n > 0);
     return b;

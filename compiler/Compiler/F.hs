@@ -22,6 +22,7 @@ data Err = CantDefSymbol String
          | LinkError (String, String)
          | InvalidOp String Bool
          | InvalidVar String
+         | NumberOfArgError String Int Int
          | TypeMismatch TypeR TypeR
          | SymbolMismatch String String
          | OperatorType String (Maybe TypeR) (Maybe TypeR)
@@ -37,6 +38,7 @@ instance Show Err where
   show (NoSuchNative u) = "Can't find native call " ++ u ++ "."
   show (MissingSymbols s) = "Missing symbols for proper recompilation: " ++ show s
   show (InvalidOp s b) = "Invalid " ++ (if b then "binary" else "unary") ++ " operator (" ++ s ++ ")"
+  show (NumberOfArgError f expect actual) = "Bad number of arguments calling function " ++ f ++ " expecting " ++ show expect ++ " , got " ++ show actual ++ " "
   show (InvalidVar s) = "Can't find variable " ++ s
   show (TypeMismatch t u) = "Type mismatch expecting " ++ show t ++ " got " ++ show u
   show (SymbolMismatch t u) = "Symbol mismatch expecting " ++ show t ++ " got " ++ show u
@@ -51,7 +53,7 @@ instance Show Err where
 -- Is it generated on the first compilation.
 data VMState = VMState {
   _intGen :: Int16, -- ^ Used internally to generate symbols
-  _nativeCalls :: M.Map String Int16, -- ^ Native calls allowed
+  _nativeCalls :: M.Map String (Int16, [TypeR], TypeR), -- ^ Native calls allowed
   _localSymbols :: M.Map (String, String) Int16, -- ^ The local symbol table.
   _symbolTable :: S.Set (String, String) -- ^ The symbol table vector
   } deriving (Show, Read, Eq)
@@ -60,7 +62,7 @@ makeLenses ''VMState
 data System = System {
   _imageTable :: M.Map String Int16, -- ^ Index of the image table
   _lastSymbols :: M.Map (String, String) Int16, -- ^ The local symbol table.
-  _lastNativeCalls :: M.Map String Int16, -- ^ Native calls allowed
+  _lastNativeCalls :: M.Map String (Int16, [TypeR], TypeR), -- ^ Native calls allowed
   _symbols :: S.Set (String, String) -- ^ The symbol table of the system.
  } deriving (Show, Read, Eq)
 makeLenses ''System
@@ -74,12 +76,15 @@ type R = RWST System [FIR] VMState (Except Err)
 -- | Get the underlying system
 class MonadSystem m where
   askSystem :: m (Maybe System)
+  getNatives :: m (M.Map String (Int16, [TypeR], TypeR))
 
 instance MonadSystem F where
   askSystem = pure Nothing
+  getNatives = use nativeCalls
 
 instance MonadSystem R where
   askSystem = pure <$> ask
+  getNatives = M.union <$> use nativeCalls <*> view lastNativeCalls
 
 class (MonadSystem m, MonadState VMState m, MonadError Err m) => MonadCompile m where
 instance MonadCompile F where

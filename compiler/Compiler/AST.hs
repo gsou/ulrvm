@@ -18,7 +18,8 @@ data Prim = I Int16  -- ^ Base 16 integer
 -- | Instruction set
 data Inst = Nop | Lit Prim | Dup | Drop | Swap | Push | Pop | Jump | Jnz | Call | Ccall | Nat | Ret | Eq | Neq | Lt | Gt | Copy | Paste | Fetch | Store | Add | Sub | Mul | Divmod | And | Or | Xor | Shift | Zret | End deriving (Show, Read, Eq)
 
--- | The bytecode number representing the instruction 
+-- | The bytecode number representing the instruction
+tag :: Num p => Inst -> p
 tag Nop     = 0
 tag (Lit _) = 1
 tag Dup     = 2
@@ -132,13 +133,22 @@ data CompilationUnit a = CompilationUnit {
   _unitName :: String, -- ^ The name of the unit
   _unitDynamic :: Bool, -- ^ Generate recompilable code?
   _unitGenSymbolLookup :: Bool, -- ^ Generate a lookup table for dynamic calls (e.g. RunDyn(unit, "main"), or RunDynPath("unit.main"))?
+  -- TODO _unitAttributeSize :: Int, -- ^ The reserved size of the block
   _unitIR :: [a] -- ^ The source code of the unit in a certain representation
   }
 makeLenses ''CompilationUnit
 
--- | The tree of the program
+-- | Native functions and variable access
+data NativeSrc = NativeSrc {
+  _natName :: String, -- ^ Function name
+  _natType :: ([TypeR], TypeR), -- ^ Function type
+  _natRawC :: Either String String -- ^ Raw C source code (Left is an external variable)
+    }
+makeLenses ''NativeSrc
+
+-- | The tree of a definition program
 data AST = AST {
-  _inlines :: [(String,String)], -- ^ Inline C code for which to provide a handler
+  _inlines :: [NativeSrc], -- ^ Inline C code for which to provide a handler
   _comps :: [CompilationUnit HIR] -- ^ Units to compute
   }
 makeLenses ''AST

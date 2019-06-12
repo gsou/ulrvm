@@ -6,6 +6,7 @@ import Compiler.F
 import Compiler.AST
 
 import Data.List (find, findIndex)
+import qualified Data.Map as M
 import Data.Maybe (fromJust)
 import Data.Bits
 
@@ -89,7 +90,16 @@ pushExpr' (BinaryOp (Just Num) "/"  (Just Num)) = Just Num <$ tell [InstIR Divmo
 pushExpr' (BinaryOp (Just Num) "%"  (Just Num)) = Just Num <$ tell [InstIR Divmod, InstIR Swap, InstIR Drop]
 pushExpr' (BinaryOp a o b) = throwError $ OperatorType o a b
 -- TODO Function dictionnary
-pushExpr' (CCall d types) = Nothing <$ tell [CallIR d]
+pushExpr' (CCall d types) = do
+  natMap <- lift $ getNatives
+  case M.lookup d natMap of
+    Nothing -> throwError $ NoSuchNative d
+    Just (_, tps, ret) -> do
+      unless (length types == length tps) $ throwError $ NumberOfArgError d (length tps) (length types)
+      forM_ (zip types tps) $ \fff -> case fff of
+        (Just actual, expected) -> unless (actual == expected) $ throwError $ TypeMismatch expected actual
+        _                       -> pure ()
+      Just ret <$ tell [CallIR d]
 pushExpr' (Assign s e) = case e of
   Just e  -> Just <$> pasteAtom s e
   Nothing -> throwError $ CantTypeCheck $ "that assigns to " ++ s

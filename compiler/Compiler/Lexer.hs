@@ -11,14 +11,14 @@ import Text.Read (readMaybe)
 import Compiler.AST
 
 -- | Keywords
-data KW = KWIf | KWElse | KWWhile | KWReturn | KWDo
+data KW = KWIf | KWElse | KWWhile | KWReturn | KWDo | KwExtern | KwFn
   deriving (Show, Eq)
 
 -- | Token Type 
 data Token =
     -- Top level
-    InlineC String String -- ^ Inline c code for native hook
-  | HookT String Bool -- ^ Declare a code image
+    HookT String Bool -- ^ Declare a code image
+  | LitBlock String -- ^ A raw string block {{ }}
 
    -- C like level
   | TypeT TypeR -- ^ A type value
@@ -71,10 +71,11 @@ irTok = do
 
 rawToken =
   -- Hi level constructs
-      try (fmap Just inlineC)
-  <|> kwAtom
+      kwAtom
   <|> (Just (AtomT "#") <$ char '#')
+  <|> try ( string "{{" >> (Just . LitBlock . ('{':) . (++"}")) <$> manyTill anyChar (try (string "}}")) )
   <|> (string "//" >> many (noneOf "\n") >> spaces >> rawToken)
+  <|> try ( string "/*" >> manyTill anyChar (try (string "*/")) >> spaces >> rawToken )
   <|> try (char '@' *> fmap (Just . flip HookT True) atom)
   <|> try (string "@@" *> fmap (Just . flip HookT False) atom)
   <|> (Just StmtSep <$ char ';')
@@ -104,6 +105,8 @@ rawToken =
            "do" -> Keyword KWDo
            "while" -> Keyword KWWhile
            "return" -> Keyword KWReturn
+           "extern" -> Keyword KwExtern
+           "fn" -> Keyword KwFn
            _ -> AtomT str
            
 -- | Lex a single token
@@ -127,15 +130,6 @@ irToken = (char ':' *> fmap (Just . LabelT) symbol)
   -- <|> try (fmap (Just . FlagN) (char '=' >> number))
   -- <|> try (fmap (Just . FlagS) (char '=' >> symbol))
 
-inlineC = do
-    name <- atom
-    string "={"
-    code <- inlineC' 1 "{"
-    pure $ InlineC name code
-  where inlineC' 0 acc = pure acc
-        inlineC' x acc = (char '{' >> inlineC' (x+1) (acc ++ "{"))
-                   <|> (char '}' >> inlineC' (x-1) (acc ++ "}"))
-                   <|> (many1 (noneOf "{}") >>= (inlineC' x . (acc ++)))
 number = read <$> ((:) <$> digit <*> many digit)
 symbol = many1 alphaNum
 atom = many1 $ oneOf $ "_0123456789" ++ ['a'..'z'] ++ ['A'..'Z']

@@ -16,10 +16,21 @@ parser' acc = (do
                   HookT h dyn <- tok isHook
                   code <- many hir
                   parser' $ comps %~ (CompilationUnit h dyn False code :) $ acc
+  ) <|> (tok' (Keyword KwExtern) >> ( (do
+     try $ tok' (Keyword KwFn)
+     TypeT returnType <- tok isType
+     AtomT n <- tok isAtom
+     tok' BracketL
+     args <- map (\(TypeT t) -> t) <$> sepBy (tok isType) (tok' ExprSep)
+     tok' BracketR
+     LitBlock str <- tok isLitBlock
+     parser' $ inlines %~ ((NativeSrc n (args, returnType) (Right str)):) $ acc
   ) <|> (do
-     InlineC n code <- tok isInlineC
-     parser' $ inlines %~ ((n,code):) $ acc
-  ) <|> (acc <$ eof)
+     TypeT t <- tok isType
+     AtomT n <- tok isAtom
+     LitBlock str <- tok isLitBlock
+     parser' $ inlines %~ ((NativeSrc n ([], t) (Left str)):) $ acc
+  ))) <|> (acc <$ eof)
 {-
 parser' :: AST -> Parsec [TokenPos] () AST
 parser' acc = (do
@@ -40,7 +51,7 @@ hir = do
   body <- stmts
   pure $ FunDef t a params body
 
-statement = 
+statement =
         flip label "declaration" (do
             (t,a) <- typeAndAtom
             assignT
@@ -130,8 +141,6 @@ isHook (HookT _ _) = True
 isHook _ = False
 isConst (ConstT _) = True
 isConst _ = False
-isInlineC (InlineC _ _) = True
-isInlineC _ = False
 isLabel (LabelT _) = True
 isLabel _ = False
 --isFlagN (FlagN _) = True
@@ -146,6 +155,8 @@ isType (TypeT _) = True
 isType _ = False
 isAtom (AtomT _) = True
 isAtom _ = False
+isLitBlock (LitBlock _) = True
+isLitBlock _ = False
 isOp (Operator "=") = False
 isOp (Operator _) = True
 isOp _ = False

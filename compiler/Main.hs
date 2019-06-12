@@ -18,6 +18,11 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
+    ["-l", src] -> do
+      content <- readFile src
+      case lexer src content of
+        Left e -> print e
+        Right ast -> print ast
     ["-i", port, baud, sys] -> S.withSerial port (S.defaultSerialSettings {S.commSpeed = genCS baud}) $ \s -> forever $ do
       putStr "> "
       src <- getLine
@@ -42,7 +47,9 @@ main = do
          "    ulrvmc -r symbol source\n" ++
          "    ulrvmc -s /dev/ttyACM0 9600 symbol source\n" ++
          "    ulrvmc -c <canid> /dev/ttyACM0 9600 symbol source\n" ++
-         "    ulrvmc -i /dev/ttyACM0 9600 symbol\n"
+         "    ulrvmc -i /dev/ttyACM0 9600 symbol\n" ++
+         "Debug:\n" ++
+         "    ulrvmc -l source\n"
        recompWith fl sys str = do
          system <- read <$> readFile sys
          case lexer "src" str >>= parser "src" of

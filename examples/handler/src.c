@@ -1,9 +1,9 @@
-gc={ 
+extern fn void gc() {{ 
     printf("Press a key:"); 
     vmLit(getchar());
-}
-f1={puts("F1 is called when '1' is pressed\n");}
-f2={printf("The key %i was pressed\n", vmPop());}
+}}
+extern fn void f1() {{puts("F1 is called when '1' is pressed\n");}}
+extern fn void f2() {{printf("The key %i was pressed\n", vmPop());}}
 
 @run
 void main() {

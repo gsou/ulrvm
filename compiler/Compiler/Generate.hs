@@ -21,6 +21,7 @@ import Control.Lens.TH
 import Text.Printf
 
 import Control.Monad.RWS.Lazy
+import Control.Monad.State.Lazy
 import Control.Monad.Except
 
 import Compiler.AST
@@ -39,9 +40,9 @@ lowerHIR' :: MonadCompile m => HIR -> m [IR]
 lowerHIR' (FunDef returnType s arg stmt) = fmap ((LabelIR s True :) . (pushAll (map fst arg) ++) . snd)
         (run stmt (fromIntegral $ length arg, arg))
  where mangle t s = s
-       run :: (MonadError Err m, MonadState VMState m) => [StatementR] -> HFState -> m (HFState, [IR])
+       run :: (MonadCompile m) => [StatementR] -> HFState -> m (HFState, [IR])
        run stmt acc = execRWST (mapM_ genStmt stmt) (returnType, arg) acc
-       genStmt :: (MonadError Err m, MonadState VMState m) => StatementR -> HF m ()
+       genStmt :: MonadCompile m => StatementR -> HF m ()
        genStmt (Declaration t s e) = do
          typ <- pushExpr e
          case typ of
@@ -112,7 +113,7 @@ lowerIR' (RawIR l) = pure [RawLIR l]
 lowerIR' (CallIR c) = do
     natNum <- uses nativeCalls (M.lookup c)
     case natNum of
-        Just n -> pure [InstLIR $ Lit $ I n, InstLIR $ Nat]
+        Just (n, _, _) -> pure [InstLIR $ Lit $ I n, InstLIR $ Nat]
         Nothing -> pure [InstLIR $ Lit $ P c, InstLIR Call]
 lowerIR' (ThenElse t e) = do
   symThen <- genSymbol
@@ -209,7 +210,7 @@ compile ast = compileAST ast genSystemMap cont
           
 -- | Default recompiler sequence
 recompile :: System -> AST -> Either Err (VMState, [FIR])
-recompile _ (AST (a:_) _) = Left (CantDefSymbol $ fst a)
+recompile _ (AST (a:_) _) = Left (CantDefSymbol $ _natName a)
 recompile system ast@(AST [] [c]) = recompileAST system ast gen $ pure ()
   where gen c = do
           sys <- ask
@@ -222,13 +223,22 @@ recompile _ _ = Left (CantDefSymbol "VOID")
 genSystem :: AST -> VMState -> System
 genSystem a s = System (M.fromList $ flip zip [0..] . sort $ map (view unitName) (a^.comps)) (s^.localSymbols) (s^.nativeCalls) (s^.symbolTable)
 
-genInlines :: [(String, String)] -> F ()
+genInlines :: [NativeSrc] -> F ()
 genInlines ins = do
     telln $ "#define defineNativeHook() void nativeHook() { switch (vmPop()) { \\"
-    forM_ (zip [0..] $ sortOn fst $ ins) $ \(ix, (name, code)) -> do
-        telln $ "case " ++ show ix ++ ": " ++ intercalate " " (lines code ++ ["break;"]) ++ " \\"
-        nativeCalls %= (M.insert name ix)
-    telln "}}"
+    flip runStateT (1::Int16) $ forM_ (sortOn _natName $ ins) $ \nat -> case nat of
+      -- NativeSrc name ([], ret) (Left var) -> do
+      --   ix <- get
+      --   telln $ "case " ++ show ix ++ ": " ++ intercalate " " (lines code ++ [, "break;"]) ++ " \\"
+      --   telln $ "case " ++ show (ix+1) ++ ": " ++ intercalate " " (lines code ++ ["break;"]) ++ " \\"
+      --   modify ix (+2)
+      --   nativeCalls %= (M.insert (name) ix)
+      NativeSrc name (args, returnType) (Right code) -> do
+         ix <- get
+         lift $ telln $ "case " ++ show ix ++ ": " ++ intercalate " " (lines code ++ ["break;"]) ++ " \\"
+         modify succ
+         lift $ nativeCalls %= (M.insert name (ix, args, returnType))
+    telln "} }"
 
 -- * Helpers
 
