@@ -1,8 +1,5 @@
-extern fn int32 add32(int32, int32) {{
-    int32_t num1 = vmPop32();
-    int32_t num2 = vmPop32();
-    vmLit32(num1+num2);
-}}
+
+#include   "../../stdlib/stdlib.h"
 
 @fibonacci
 int32 main(int n) {

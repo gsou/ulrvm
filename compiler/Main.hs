@@ -4,6 +4,7 @@ module Main where
 import System.Environment (getArgs)
 import qualified System.Hardware.Serialport as S
 
+import Compiler.Preprocessor
 import Compiler.Lexer
 import Compiler.Parser
 import Compiler.Generate
@@ -19,7 +20,7 @@ main = do
   args <- getArgs
   case args of
     ["-l", src] -> do
-      content <- readFile src
+      content <- preprocess =<< readFile src
       case lexer src content of
         Left e -> print e
         Right ast -> print ast
@@ -31,7 +32,7 @@ main = do
     ["-c", canId, port, baud, sys, sn] -> S.withSerial port (S.defaultSerialSettings {S.commSpeed = genCS baud}) $ \s -> recompWith (SerialCANAdapter (read canId) s) sys =<< readFile sn
     ["-r", sys, sn] -> recompWith DebugRaw sys =<< readFile sn
     [sn] -> do
-      str <- readFile sn
+      str <- preprocess =<< readFile sn
       case lexer sn str >>= parser sn of
         Left e -> print e
         Right ast -> case compile ast of
@@ -52,7 +53,8 @@ main = do
          "    ulrvmc -l source\n"
        recompWith fl sys str = do
          system <- read <$> readFile sys
-         case lexer "src" str >>= parser "src" of
+         code <- preprocess str
+         case lexer "src" code >>= parser "src" of
            Left e -> print e
            Right ast -> case recompile system ast of
              Right (_, source) -> mapM_ (flash fl) source

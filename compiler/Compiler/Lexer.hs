@@ -11,7 +11,7 @@ import Text.Read (readMaybe)
 import Compiler.AST
 
 -- | Keywords
-data KW = KWIf | KWElse | KWWhile | KWReturn | KWDo | KwExtern | KwFn
+data KW = KWIf | KWElse | KWWhile | KWReturn | KWDo | KwExtern | KwFn | KwStruct | KwUnion
   deriving (Show, Eq)
 
 -- | Token Type 
@@ -98,6 +98,7 @@ rawToken =
          pure $ Just $ case str of
            "int" -> TypeT Num
            "int32" -> TypeT Num32
+           "float" -> TypeT Float32
            "int64" -> TypeT Num64
            "void" -> TypeT Void
            "if" -> Keyword KWIf

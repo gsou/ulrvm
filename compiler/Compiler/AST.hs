@@ -82,16 +82,17 @@ data IR = LabelIR String Bool -- ^ A label creation request
 data TypeR = Num -- ^ Native word type
            | Num32 -- ^ 32 bit integer type
            | Num64 -- ^ 64 bit integer type
-           -- | FunPtr 
+           | Float32 -- ^ 32 bit floating point number
+           -- | FunPtr
            | Void -- ^ Empty type
   deriving (Show, Read, Eq)
 
 -- Size of in machine word of types
-sizeOf Void  = 0
-sizeOf Num   = 1
-sizeOf Num32 = 2
-sizeOf Num64 = 4
-
+sizeOf Void    = 0
+sizeOf Num     = 1
+sizeOf Num32   = 2
+sizeOf Float32 = 2
+sizeOf Num64   = 4
 
 data Lit =
    Primitive Prim
