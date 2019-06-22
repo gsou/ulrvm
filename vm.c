@@ -1,8 +1,9 @@
 #include "vm/vm.h"
 
-#ifdef DEBUG_VM 
+#ifdef DEBUG_VM
 #include <stdio.h>
 #endif
+#include <string.h>
 
 ////////////////
 /// VM STATE ///
@@ -44,102 +45,83 @@ enum vm_opcode {
 };
 #define NUM_OPS VM_END + 1
 
-/**
- * The environnement needed to run the vm.
- * To setup an environment, you only need to setup the memory.
- */
-static CELL sp; // Stack pointer
-static CELL rp; // Adress pointer
-static CELL ip; // Instruction pointer
 
-// The stacks
-static CELL data[DATA_STACK_DEPTH]; 
-static CELL address[CALL_STACK_DEPTH];
-
-static CELL memory_size; // The size of the rom chunk
-static bool memory_writable; // Is the image writable (self modifying code)
-static CELL* memory;
-
-static bool dma; // Set by the recompiler when compiling, disable running code
-
-static void (*nat_handler)(void); // Handler for native calls
-
-#define TOS  data[sp]
-#define NOS  data[sp-1]
-#define TORS address[rp]
+#define TOS  vm->data[vm->sp]
+#define NOS  vm->data[vm->sp-1]
+#define TORS vm->address[vm->rp]
 
 ////////////////////
 /// INSTRUCTIONS ///
 ////////////////////
 
-static void inst_nop() {DEBUG_VM(VM_NOP)}
-static void inst_lit() {sp++; ip++; TOS = memory[ip]; DEBUG_VM(VM_LIT)}
-static void inst_dup() {sp++; data[sp] = NOS; DEBUG_VM(VM_DUP)}
-static void inst_drop() {data[sp] = 0; if (--sp < 0) ip = memory_size;}
-static void inst_swap() {int a; a = TOS; TOS = NOS; NOS = a; DEBUG_VM(VM_SWAP)}
-static void inst_push() {rp++; TORS = TOS; inst_drop(); DEBUG_VM(VM_PUSH); }
-static void inst_pop() {sp++; TOS = TORS; rp--; DEBUG_VM(VM_POP)}
-static void inst_jump() {ip = TOS - 1; inst_drop(); DEBUG_VM(VM_JUMP);}
-static void inst_jnz() {
-    int a = TOS; inst_drop();
-    int b = TOS; inst_drop();
-    if (b!=0) ip = a-1;
+static void inst_nop(vm_t* vm) {DEBUG_VM(VM_NOP)}
+static void inst_lit(vm_t* vm) {vm->sp++; vm->ip++; TOS = vm->memory[vm->ip]; DEBUG_VM(VM_LIT)}
+static void inst_dup(vm_t* vm) {vm->sp++; vm->data[vm->sp] = NOS; DEBUG_VM(VM_DUP)}
+static void inst_drop(vm_t* vm) {vm->data[vm->sp] = 0; if (--vm->sp < 0) vm->ip = vm->memory_size;}
+static void inst_swap(vm_t* vm) {int a; a = TOS; TOS = NOS; NOS = a; DEBUG_VM(VM_SWAP)}
+static void inst_push(vm_t* vm) {vm->rp++; TORS = TOS; inst_drop(vm); DEBUG_VM(VM_PUSH); }
+static void inst_pop(vm_t* vm) {vm->sp++; TOS = TORS; vm->rp--; DEBUG_VM(VM_POP)}
+static void inst_jump(vm_t* vm) {vm->ip = TOS - 1; inst_drop(vm); DEBUG_VM(VM_JUMP);}
+static void inst_jnz(vm_t* vm) {
+    int a = TOS; inst_drop(vm);
+    int b = TOS; inst_drop(vm);
+    if (b!=0) vm->ip = a-1;
     DEBUG_VM(VM_JNZ)
 }
-static void inst_call() {rp++; TORS = ip; ip = TOS - 1;  inst_drop(); DEBUG_VM(VM_CALL);}
-static void inst_ccall() {
+static void inst_call(vm_t* vm) {vm->rp++; TORS = vm->ip; vm->ip = TOS - 1;  inst_drop(vm); DEBUG_VM(VM_CALL);}
+static void inst_ccall(vm_t* vm) {
     int a, b;
-    a = TOS; inst_drop();  /* False */
-    b = TOS; inst_drop();  /* Flag  */
+    a = TOS; inst_drop(vm);  /* False */
+    b = TOS; inst_drop(vm);  /* Flag  */
     if (b != 0) {
-        rp++;
-        TORS = ip;
-        ip = a - 1;
+        vm->rp++;
+        TORS = vm->ip;
+        vm->ip = a - 1;
     }
     DEBUG_VM(VM_CCALL)
 }
-static void inst_nat() {
-    if (nat_handler != 0) {
-        nat_handler();
+static void inst_nat(vm_t* vm) {
+    if (vm->nat_handler != 0) {
+        vm->nat_handler(vm);
     } else {
-        int a = TOS; inst_drop();
+        int a = TOS; inst_drop(vm);
         // Default handler, call from memory (not always possible)
         switch (a) {
         default: {
-            void (**fp)(void) = (void (**)(void))(memory + a);
+            void (**fp)(void) = (void (**)(void))(vm->memory + a);
             if ((*fp) != 0) (*fp)(); break; }
         }
     }
     DEBUG_VM(VM_NAT)
         }
-static void inst_return() {ip = TORS; rp--; DEBUG_VM(VM_RETURN)}
-static void inst_eq() {NOS = (NOS == TOS) ? -1 : 0;  inst_drop();DEBUG_VM(VM_EQ); }
-static void inst_neq() {NOS = (NOS != TOS) ? -1 : 0;  inst_drop();DEBUG_VM(VM_NEQ); }
-static void inst_lt() {NOS = (NOS < TOS) ? -1 : 0;  inst_drop();DEBUG_VM(VM_LT); }
-static void inst_gt() {NOS = (NOS > TOS) ? -1 : 0; inst_drop(); DEBUG_VM(VM_GT);}
-static void inst_copy() {TOS = address[rp-TOS]; DEBUG_VM(VM_COPY);}
-static void inst_paste() {
-    int offset = TOS; inst_drop();
-    int len = TOS; inst_drop();
+static void inst_return(vm_t* vm) {vm->ip = TORS; vm->rp--; DEBUG_VM(VM_RETURN)}
+static void inst_eq(vm_t* vm) {NOS = (NOS == TOS) ? -1 : 0;  inst_drop(vm);DEBUG_VM(VM_EQ); }
+static void inst_neq(vm_t* vm) {NOS = (NOS != TOS) ? -1 : 0;  inst_drop(vm);DEBUG_VM(VM_NEQ); }
+static void inst_lt(vm_t* vm) {NOS = (NOS < TOS) ? -1 : 0;  inst_drop(vm);DEBUG_VM(VM_LT); }
+static void inst_gt(vm_t* vm) {NOS = (NOS > TOS) ? -1 : 0; inst_drop(vm); DEBUG_VM(VM_GT);}
+static void inst_copy(vm_t* vm) {TOS = vm->address[vm->rp-TOS]; DEBUG_VM(VM_COPY);}
+static void inst_paste(vm_t* vm) {
+    int offset = TOS; inst_drop(vm);
+    int len = TOS; inst_drop(vm);
     for(int i = 0; i < len; i++) {
-        address[rp-(offset + i)] = data[sp-len+1+i];
+        vm->address[vm->rp-(offset + i)] = vm->data[vm->sp-len+1+i];
     }
     DEBUG_VM(VM_PASTE);
 }
-static void inst_fetch() {
+static void inst_fetch(vm_t* vm) {
     switch (TOS) {
-    case -1: TOS = sp - 1; break;
-    case -2: TOS = rp; break;
-    case -3: TOS = memory_size; break;
-    default: TOS = memory[TOS]; break;
+    case -1: TOS = vm->sp - 1; break;
+    case -2: TOS = vm->rp; break;
+    case -3: TOS = vm->memory_size; break;
+    default: TOS = vm->memory[TOS]; break;
     }
     DEBUG_VM(VM_FETCH)
 }
-static void inst_store() {if(memory_writable) memory[TOS] = NOS; inst_drop(); inst_drop(); DEBUG_VM(VM_STORE)}
-static void inst_add() {NOS += TOS; inst_drop(); DEBUG_VM(VM_ADD)}
-static void inst_sub() {NOS -= TOS; inst_drop(); DEBUG_VM(VM_SUB)}
-static void inst_mul() {NOS *= TOS; inst_drop(); DEBUG_VM(VM_MUL)}
-static void inst_divmod() {
+static void inst_store(vm_t* vm) {if(vm->memory_writable) vm->memory[TOS] = NOS; inst_drop(vm); inst_drop(vm); DEBUG_VM(VM_STORE)}
+static void inst_add(vm_t* vm) {NOS += TOS; inst_drop(vm); DEBUG_VM(VM_ADD)}
+static void inst_sub(vm_t* vm) {NOS -= TOS; inst_drop(vm); DEBUG_VM(VM_SUB)}
+static void inst_mul(vm_t* vm) {NOS *= TOS; inst_drop(vm); DEBUG_VM(VM_MUL)}
+static void inst_divmod(vm_t* vm) {
     int a, b;
     a = TOS;
     b = NOS;
@@ -147,10 +129,10 @@ static void inst_divmod() {
     NOS = b % a;
     DEBUG_VM(VM_DIVMOD)
 }
-static void inst_and() {NOS = TOS & NOS; inst_drop(); DEBUG_VM(VM_AND)}
-static void inst_or() {NOS = TOS | NOS; inst_drop(); DEBUG_VM(VM_OR)}
-static void inst_xor() {NOS = TOS ^ NOS; inst_drop(); DEBUG_VM(VM_XOR)}
-static void inst_shift() {
+static void inst_and(vm_t* vm) {NOS = TOS & NOS; inst_drop(vm); DEBUG_VM(VM_AND)}
+static void inst_or(vm_t* vm) {NOS = TOS | NOS; inst_drop(vm); DEBUG_VM(VM_OR)}
+static void inst_xor(vm_t* vm) {NOS = TOS ^ NOS; inst_drop(vm); DEBUG_VM(VM_XOR)}
+static void inst_shift(vm_t* vm) {
     CELL y = TOS;
     CELL x = NOS;
     if (TOS < 0)
@@ -161,20 +143,20 @@ static void inst_shift() {
         else
             NOS = x >> y;
     }
-    inst_drop();
+    inst_drop(vm);
     DEBUG_VM(VM_SHIFT)
 }
-static void inst_zret() {
+static void inst_zret(vm_t* vm) {
     if (TOS == 0) {
-        inst_drop();
-        ip = TORS;
-        rp--;
+        inst_drop(vm);
+        vm->ip = TORS;
+        vm->rp--;
     }
     DEBUG_VM(VM_ZRET)
 }
-static void inst_end() {ip = memory_size; DEBUG_VM(VM_END)}
+static void inst_end(vm_t* vm) {vm->ip = vm->memory_size; DEBUG_VM(VM_END)}
 
-typedef void (*Handler)(void);
+typedef void (*Handler)(vm_t*);
 
 Handler instructions[NUM_OPS] = {
     inst_nop, inst_lit, inst_dup, inst_drop, inst_swap, inst_push, inst_pop,
@@ -187,8 +169,8 @@ Handler instructions[NUM_OPS] = {
 /// Implementation ///
 //////////////////////
 
-void vmProcessOpcode(CELL opcode) {
-    instructions[opcode]();
+void vmProcessOpcode(vm_t* vm, CELL opcode) {
+    instructions[opcode](vm);
 }
 
 // NOTE This function depend on the size of CELL
@@ -206,61 +188,63 @@ int vmValidatePackedOpcodes(CELL opcode) {
 }
 
 // NOTE This function depend on the size of CELL
-void vmProcessPackedOpcodes(int opcode) {
+void vmProcessPackedOpcodes(vm_t* vm, int opcode) {
     CELL raw = opcode;
     for (int i = 0; i < 3; i++) {
-        vmProcessOpcode(raw & 31);
+        vmProcessOpcode(vm, raw & 31);
         raw = raw >> 5;
     }
 }
 
-bool vmRun(CELL from){
+bool vmRun(vm_t* vm, CELL from){
     CELL opcode, i, lastip;
     bool success = true;
-    rp++; TORS = ip;
-    rp++; TORS = memory_size; 
-    ip=from;
-    while(ip < memory_size) {
-        opcode = memory[ip];
+    vm->rp++; TORS = vm->ip;
+    vm->rp++; TORS = vm->memory_size; 
+    vm->ip=from;
+    while(vm->ip < vm->memory_size) {
+        opcode = vm->memory[vm->ip];
         if(vmValidatePackedOpcodes(opcode) != 0){
-            vmProcessPackedOpcodes(opcode);
+            vmProcessPackedOpcodes(vm, opcode);
         } else if (opcode >= 0 && opcode < NUM_OPS) {
-            vmProcessOpcode(opcode);
+            vmProcessOpcode(vm, opcode);
         } else {
             success = false;
             break;
         }
-        ip++;
+        vm->ip++;
     }
-    ip = TORS; rp--;
+    vm->ip = TORS; vm->rp--;
 
     return success;
 }
 
-CELL vmTOS() {return TOS;}
-void vmLit(CELL c) {sp++; TOS=c;}
-void vmLit32(int32_t c) {sp++; TOS=c>>16; sp++; TOS=c&0xFFFF; }
-CELL vmPop() {CELL r = TOS; if(sp > 0) sp--; return r;}
-int32_t vmPop32() {
+CELL vmTOS(vm_t* vm) {return TOS;}
+void vmLit(vm_t* vm, CELL c) {vm->sp++; TOS=c;}
+void vmLit32(vm_t* vm, int32_t c) {vm->sp++; TOS=c>>16; vm->sp++; TOS=c&0xFFFF; }
+CELL vmPop(vm_t* vm) {CELL r = TOS; if(vm->sp > 0) vm->sp--; return r;}
+int32_t vmPop32(vm_t* vm) {
     int32_t ret;
-    ((UCELL*)(&ret))[0] = *((UCELL*)data+sp);
-    ((CELL*)(&ret))[1] = *((CELL*)data+sp-1);
-    if(sp > 0) sp--;  if(sp > 0) sp--;
+    ((UCELL*)(&ret))[0] = *((UCELL*)vm->data+vm->sp);
+    ((CELL*)(&ret))[1] = *((CELL*)vm->data+vm->sp-1);
+    if(vm->sp > 0) vm->sp--;  if(vm->sp > 0) vm->sp--;
     return ret;
 }
-CELL vmNOS() {return NOS;}
+CELL vmNOS(vm_t* vm) {return NOS;}
 
-void vmNatHandler(void (*h)(void)) {
-    nat_handler = h;
+void vmNatHandler(vm_t* vm, void (*h)(vm_t*)) {
+    vm->nat_handler = h;
 }
 
-void vmLoad(CELL* mem, CELL size, bool writable) {
-    memory = mem;
-    memory_size = size;
-    memory_writable = writable;
+void vmLoad(vm_t* vm, CELL* mem, CELL size, bool writable) {
+    vm->memory = mem;
+    vm->memory_size = size;
+    vm->memory_writable = writable;
 }
 
-void vmClear() {
+void vmClear(vm_t* vm) {
+    memset(vm, 0, sizeof(vm_t));
+    /*
     ip = sp = rp = 0;
 
     if(memory_writable)
@@ -272,4 +256,5 @@ void vmClear() {
 
     for (ip = 0; ip < CALL_STACK_DEPTH; ip++)
         address[ip] = 0;
+    */
 }

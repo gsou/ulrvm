@@ -1,15 +1,17 @@
 
+#include "vm/vm.h"
 #include "system.map.h"
 #include "vm/vmpp.h"
 
 #include <stdio.h>
 
 
-Hook(run);
-InitVM();
+vm_t vm;
+Hook(&vm, run);
+AllocVM();
 
 int main() {
-    vmNatHandler(nativeHook);
+    InitVM(&vm);
     run();
 }
 

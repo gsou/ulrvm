@@ -2,6 +2,8 @@ build*
 debug*
 TODO.txt
 /dist/release/
+model
+stdlib
 .#*
 .*.swp
 .*.swo

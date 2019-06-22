@@ -1,5 +1,5 @@
 
-#include   "../../stdlib/stdlib.h"
+extern fn int32 add32(int32, int32) {{ vmLit32(vm, vmPop32(vm)+vmPop32(vm)); }}
 
 @fibonacci
 int32 main(int n) {

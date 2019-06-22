@@ -1,13 +1,15 @@
 
+#include "vm/vm.h"
 #include "system.map.h"
 #include "vm/vmpp.h"
 
 #include <stdio.h>
 
-Hook_1_2(fibonacci);
-InitVM();
+vm_t vm;
+Hook_1_2(&vm, fibonacci);
+AllocVM();
 
 int main() {
-  vmNatHandler(nativeHook);
+  InitVM(&vm);
   printf("The 46th fibonacci number is : %li", fibonacci(46));
 }

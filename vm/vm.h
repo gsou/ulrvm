@@ -32,13 +32,33 @@
  */
 typedef int16_t CELL;
 typedef uint16_t UCELL;
+typedef int32_t LCELL;
+typedef int32_t ULCELL;
 
-////////////
-/// VARS ///
-////////////
 
-extern CELL symbolTable[];
-extern CELL* imageTable[];
+/**
+ * The environnement needed to run the vm.
+ * To setup an environment, you only need to setup the memory.
+ */
+typedef struct vm_t {
+    CELL sp; // Stack pointer
+    CELL rp; // Adress pointer
+    CELL ip; // Instruction pointer
+
+    CELL data[DATA_STACK_DEPTH];
+    CELL address[CALL_STACK_DEPTH];
+
+    CELL memory_size; // The size of the rom chunk
+    bool memory_writable; // Is the image writable (self modifying code)
+    CELL* memory;
+
+    bool dma; // Set by the recompiler when compiling, disable running code
+
+    void (*nat_handler)(struct vm_t*); // Handler for native calls
+
+    CELL* symbolTable;
+    CELL** imageTable;
+} vm_t;
 
 ////////////////////////////
 /// OPERATIONS OF THE VM ///
@@ -47,31 +67,31 @@ extern CELL* imageTable[];
 /**
  * Cleanup the environment
  */
-void vmClear();
+void vmClear(vm_t*);
 
 /**
  * Run the vm until an end condition is triggered. The entry point can be selected
  */
-bool vmRun(CELL);
+bool vmRun(vm_t*, CELL);
 
 /**
  * Load the memory into the vm
  */
-void vmLoad(CELL* mem, CELL size, bool writable);
+void vmLoad(vm_t*, CELL* mem, CELL size, bool writable);
 /**
  * Set the handler for native calls
  */
-void vmNatHandler(void(*)(void));
+void vmNatHandler(vm_t*, void(*)(vm_t*));
 
 /**
  * Get the cells on the top of the stack, used by library functions
  */
-CELL vmTOS(void);
-void vmLit(CELL);
-void vmLit32(int32_t);
-CELL vmPop(void);
-int32_t vmPop32(void);
-CELL vmNOS(void);
+CELL vmTOS(vm_t*);
+void vmLit(vm_t*, CELL);
+void vmLit32(vm_t*, int32_t);
+CELL vmPop(vm_t*);
+int32_t vmPop32(vm_t*);
+CELL vmNOS(vm_t*);
 
 
 #endif // #ifndef VM_H

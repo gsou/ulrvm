@@ -1,13 +1,16 @@
 
+#include "vm/vm.h"
 #include "system.map.h"
 #include "vm/vmpp.h"
 
 #include <iostream>
 
-HookR1(fibonacci);
-InitVM();
+vm_t vm;
+HookR1(&vm, fibonacci);
+AllocVM();
 
 int main() {
+    InitVM(&vm);
     // Import code
     CELL loc; std::cin >> loc;
     CELL len; std::cin >> len;

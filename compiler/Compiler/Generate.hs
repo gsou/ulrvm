@@ -224,7 +224,7 @@ genSystem a s = System (M.fromList $ flip zip [0..] . sort $ map (view unitName)
 
 genInlines :: [NativeSrc] -> F ()
 genInlines ins = do
-    telln $ "#define defineNativeHook() void nativeHook() { switch (vmPop()) { \\"
+    telln $ "void nativeHook(vm_t* vm) { switch (vmPop(vm)) { "
     flip runStateT (1::Int16) $ forM_ ins $ \nat -> case nat of
       -- NativeSrc name ([], ret) (Left var) -> do
       --   ix <- get
@@ -234,7 +234,7 @@ genInlines ins = do
       --   nativeCalls %= (M.insert (name) ix)
       NativeSrc name (args, returnType) (Right code) -> do
          ix <- get
-         lift $ telln $ "case " ++ show ix ++ ": " ++ intercalate " " (lines code ++ ["break;"]) ++ " \\"
+         lift $ telln $ "case " ++ show ix ++ ": " ++ (code ++ " break;")
          modify succ
          lift $ nativeCalls %= (M.insert name (ix, args, returnType))
     telln "} }"

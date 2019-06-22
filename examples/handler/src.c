@@ -1,9 +1,9 @@
 extern fn int gc() {{ 
     printf("Press a key:"); 
-    vmLit(getchar());
+    vmLit(vm, getchar());
 }}
 extern fn void f1() {{puts("F1 is called when '1' is pressed\n");}}
-extern fn void f2(int) {{printf("The key %i was pressed\n", vmPop());}}
+extern fn void f2(int) {{printf("The key %i was pressed\n", vmPop(vm));}}
 
 @run
 void main() {

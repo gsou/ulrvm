@@ -105,8 +105,7 @@ data ExpRF a = Atom String
           | UnaryOp String a
           | BinaryOp a String a
           | CCall String [a]
-          | Ternary a a a
-          | Assign String a
+          | Ternary a a a | Assign String a
           | Cast TypeR a
           | InlineAsmExp [IR]
   deriving (Show, Read, Eq, Functor, Foldable, Traversable)
