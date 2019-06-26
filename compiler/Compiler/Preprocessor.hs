@@ -12,7 +12,9 @@ preprocess = fmap unlines . mapM preprocess' . lines
                         let str = (trim $ drop 9 $ x)
                         in if length str > 2
                            then if head str == '"' && last str == '"'
-                                then let file = (init $ tail $ str) in withCurrentDirectory (parent file) $ readFile file >>= preprocess
+                                then let file = (init $ tail $ str) in do
+                                    content <- readFile file
+                                    withCurrentDirectory (parent file) $ preprocess content
                                 else pure x
                            else pure x
         preprocess' x = pure x
