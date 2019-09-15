@@ -1,3 +1,5 @@
 dist/
 system.map.h
 .stack-work
+stack.yaml.lock
+dist-newstyle/

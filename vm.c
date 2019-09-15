@@ -43,6 +43,7 @@ enum vm_opcode {
     /* 1D */ VM_ZRET,   /* Return if TOS is 0 */
     /* 1E */ VM_END     /* End the current VM execution */
 };
+
 #define NUM_OPS VM_END + 1
 
 
