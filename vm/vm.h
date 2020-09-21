@@ -90,8 +90,10 @@ void vmNatHandler(vm_t*, void(*)(vm_t*));
 CELL vmTOS(vm_t*);
 void vmLit(vm_t*, CELL);
 void vmLit32(vm_t*, int32_t);
+void vmLitFloat(vm_t*, float);
 CELL vmPop(vm_t*);
 int32_t vmPop32(vm_t*);
+float vmPopFloat(vm_t*);
 CELL vmNOS(vm_t*);
 
 
