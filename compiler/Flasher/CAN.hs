@@ -2,6 +2,7 @@
 -- CAN reprogramming
 module Flasher.CAN (
  SerialCANAdapter(..),
+ SerialCANIO(..),
  ) where
 
 import qualified System.Hardware.Serialport as S
@@ -26,6 +27,9 @@ data SerialCANAdapter = SerialCANAdapter
   Word32 -- ^ CAN id used
   S.SerialPort -- ^ Serial interface
 
+data SerialCANIO = SerialCANIO
+  Word32 -- ^ CAN id used
+  
 instance Reprog SerialCANAdapter where
   flash (SerialCANAdapter canId s) (Flash ix code) = do
     forM_ (zip [0::Integer ..] code) $ \(n,v) -> do
@@ -40,7 +44,14 @@ instance Reprog SerialCANAdapter where
     S.send s $ pack $ "++" ++ show canId ++ "+2" ++ formatI16 i ++ "\n"
     S.flush s
 
+instance Reprog SerialCANIO where
+  flash (SerialCANIO canId) (Flash ix code) = do
+    forM_ (zip [0::Integer ..] code) $ \(n,v) -> do
+      putStr $ " + +" ++ show canId ++ " +6" ++ formatI16 ix ++ formatI16 n ++ formatI16 v ++ "\n"
+    putStr $ " + +" ++ show canId ++ " +2" ++ formatI16 ix ++ "\n"
+  flash (SerialCANIO canId) (Run i) = do
+    putStr $ " + +" ++ show canId ++ " +2" ++ formatI16 i ++ "\n"
 
 formatI16 :: (Show a, Num a, Bits a) => a -> String
-formatI16 i = "+" ++ show (i.&.0xFF) ++ "+" ++ show ((i `shift` (-8)).&.0xFF)
+formatI16 i = " +" ++ show (i.&.0xFF) ++ " +" ++ show ((i `shift` (-8)).&.0xFF)
 

@@ -223,6 +223,7 @@ bool vmRun(vm_t* vm, CELL from){
 CELL vmTOS(vm_t* vm) {return TOS;}
 void vmLit(vm_t* vm, CELL c) {vm->sp++; TOS=c;}
 void vmLit32(vm_t* vm, int32_t c) {vm->sp++; TOS=c>>16; vm->sp++; TOS=c&0xFFFF; }
+void vmLitFloat(vm_t* vm, float f) {union {float f; int32_t i; } c; c.f = f; vmLit32(vm, c.i);}
 CELL vmPop(vm_t* vm) {CELL r = TOS; if(vm->sp > 0) vm->sp--; return r;}
 int32_t vmPop32(vm_t* vm) {
     int32_t ret;
@@ -230,6 +231,11 @@ int32_t vmPop32(vm_t* vm) {
     ((CELL*)(&ret))[1] = *((CELL*)vm->data+vm->sp-1);
     if(vm->sp > 0) vm->sp--;  if(vm->sp > 0) vm->sp--;
     return ret;
+}
+float vmPopFloat(vm_t* vm) {
+    union {float f; int32_t i;} c;
+    c.i = vmPop32(vm);
+    return c.f;
 }
 CELL vmNOS(vm_t* vm) {return NOS;}
 
