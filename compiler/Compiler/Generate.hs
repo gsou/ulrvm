@@ -43,7 +43,9 @@ lowerHIR' (FunDef returnType s arg stmt) = fmap ((LabelIR s True :) . (pushAll (
        run stmt acc = execRWST (mapM_ genStmt stmt) (returnType, arg) acc
        genStmt :: MonadCompile m => StatementR -> HF m ()
        genStmt (Declaration t s e) = do
-         typ <- pushExpr e
+         typ <- case e of
+           Just e -> pushExpr e
+           Nothing -> Just t <$ tell (replicate (sizeOf t) $ InstIR $ Lit $ I 0)
          case typ of
            Just j -> if (j == t)
              then performPushType t

@@ -3,6 +3,7 @@
 module Compiler.AST where
 
 import Data.Int (Int8, Int16, Int32)
+import Data.List (find, findIndex)
 import Control.Lens
 import Control.Lens.TH
 
@@ -84,6 +85,8 @@ data TypeR = Num -- ^ Native word type
            | Num64 -- ^ 64 bit integer type
            | Float32 -- ^ 32 bit floating point number
            -- | FunPtr
+           | StructType [(String, TypeR)]
+           | UnionType [(String, TypeR)]
            | Void -- ^ Empty type
   deriving (Show, Read, Eq)
 
@@ -93,6 +96,27 @@ sizeOf Num     = 1
 sizeOf Num32   = 2
 sizeOf Float32 = 2
 sizeOf Num64   = 4
+sizeOf (StructType s) = sum $ map (sizeOf . snd) s
+sizeOf (UnionType u) = maximum $ map (sizeOf . snd) u
+
+typeOffsetIn :: TypeR -> [String] -> Maybe (TypeR, Int)
+typeOffsetIn t str = (,) <$> typeOfIn t str <*> offsetIn t str
+
+typeOfIn t [] = Just t
+typeOfIn (StructType st) (n:ns) = find ((n==) . fst) st >>= \(_,t) -> typeOfIn t ns
+typeOfIn (UnionType ut)  (n:ns) = find ((n==) . fst) ut >>= \(_,t) -> typeOfIn t ns
+typeOfIn _ _ = Nothing
+
+offsetIn :: TypeR -> [String] -> Maybe Int
+offsetIn _ [] = Just 0
+offsetIn (StructType st) (n:ns) = findIndex ((n==) . fst) st >>= \i -> do
+  typ <- snd <$> find ((n==) . fst) st
+  let offset = sum . map (sizeOf . snd) $ take i st
+  inoffset <- offsetIn typ ns
+  pure $ offset + inoffset
+offsetIn (UnionType ut) (n:ns) = find ((n==) . fst) ut >>= \(_,t) -> offsetIn t ns
+-- Can't offset in type
+offsetIn _ _ = Nothing
 
 data Lit =
    Primitive Prim
@@ -116,7 +140,7 @@ newtype Fx f = Fx { unFix :: (f (Fx f)) }
 type ExpR = Fx ExpRF
 
 -- | Imperative representation
-data StatementR = Declaration TypeR String ExpR
+data StatementR = Declaration TypeR String (Maybe ExpR)
                 | If ExpR [StatementR] [StatementR]
                 | While ExpR [StatementR]
                 | Raw ExpR

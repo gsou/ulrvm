@@ -15,6 +15,8 @@ import Control.Monad
 import Control.Monad.RWS.Lazy
 import Control.Monad.Except
 
+import Data.List.Split
+
 {-
 instance Functor ExpRF where
   fmap = fmapDefault
@@ -112,24 +114,32 @@ pushExpr' (Cast a (Just b)) = throwError $ ConversionError a b
 pushExpr' (InlineAsmExp ir) = Nothing <$ tell ir
 
 copyAtom :: (MonadError Err m) => String -> HF m TypeR
-copyAtom s = do
+copyAtom name = do
+  let (s:ss) = splitOn "." name
   ix <- uses _2 (findIndex ((s==).snd))
   case ix of
     Just i  -> do
-      typ <- fromJust .fmap fst <$> uses _2 (find ((s==).snd))
+      varType <- fromJust .fmap fst <$> uses _2 (find ((s==).snd))
+      (typ, insideOffset) <- case typeOffsetIn varType ss of
+                               Just t -> pure t
+                               Nothing -> throwError $ VarDotError varType name
       offset <- uses _2 (sum . map (sizeOf . fst) . take i)
-      forM_ (take (sizeOf typ) [offset..]) $ \i -> tell [InstIR $ Lit $ I $ fromIntegral i, InstIR Copy]
+      forM_ (take (sizeOf typ) [(offset+insideOffset)..]) $ \i -> tell [InstIR $ Lit $ I $ fromIntegral i, InstIR Copy]
       pure typ
-    Nothing -> throwError $ InvalidVar s
+    Nothing -> throwError $ InvalidVar name
 
 pasteAtom :: (MonadError Err m) => String -> TypeR -> HF m TypeR
-pasteAtom s tp = do
+pasteAtom name tp = do
+  let (s:ss) = splitOn "." name
   ix <- uses _2 (findIndex ((s==).snd))
   case ix of
     Just i  -> do
-      typ <- fromJust . fmap fst <$> uses _2 (find ((s==).snd))
+      varType <- fromJust . fmap fst <$> uses _2 (find ((s==).snd))
+      (typ, insideOffset) <- case typeOffsetIn varType ss of
+                               Just t -> pure t
+                               Nothing -> throwError $ VarDotError varType name
       unless (tp == typ) $ throwError $ TypeMismatch typ tp
       offset <- uses _2 (sum . map (sizeOf . fst) . take i)
-      tell [InstIR $ Lit $ I $ sizeOf typ, InstIR $ Lit $ I offset, InstIR Paste]
+      tell [InstIR $ Lit $ I $ sizeOf typ, InstIR $ Lit $ I $ fromIntegral (offset + insideOffset), InstIR Paste]
       pure typ
-    Nothing -> throwError $ InvalidVar s
+    Nothing -> throwError $ InvalidVar name

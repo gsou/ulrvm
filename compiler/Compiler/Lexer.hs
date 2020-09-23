@@ -94,7 +94,7 @@ rawToken =
   -- End
   <|> pure Nothing
  where kwAtom = do
-         str <- (:) <$> letter <*> many (oneOf $ "_0123456789" ++ ['a'..'z'] ++ ['A'..'Z'])
+         str <- (:) <$> letter <*> many (oneOf $ "_0123456789." ++ ['a'..'z'] ++ ['A'..'Z'])
          pure $ Just $ case str of
            "int" -> TypeT Num
            "int32" -> TypeT Num32
@@ -108,6 +108,8 @@ rawToken =
            "return" -> Keyword KWReturn
            "extern" -> Keyword KwExtern
            "fn" -> Keyword KwFn
+           "struct" -> Keyword KwStruct
+           "union" -> Keyword KwUnion
            _ -> AtomT str
            
 -- | Lex a single token

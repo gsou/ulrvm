@@ -28,6 +28,7 @@ data Err = CantDefSymbol String
          | OperatorType String (Maybe TypeR) (Maybe TypeR)
          | CantTypeCheck String
          | ConversionError TypeR TypeR
+         | VarDotError TypeR String
          | AmbiguousRawType
 
 instance Show Err where
@@ -47,6 +48,7 @@ instance Show Err where
   show (OperatorType op (Just fst) (Just snd)) = "Operator " ++ op ++ " can't take types " ++ show fst ++ " and " ++ show snd
   show (OperatorType op _ _) = "Operator " ++ op ++ " used with ambiguous types"
   show (ConversionError a b) = "Can't convert from type " ++ show a ++ " to type " ++ show b
+  show (VarDotError t str) = "Variable ident \"" ++ show str ++ "\" is not a valid subtype of type " ++ show t
   show AmbiguousRawType = "Type of raw statement is ambiguous"
 
 -- | State representing the lowlevel organization of a system.

@@ -18,7 +18,7 @@ parser' acc = (do
                   parser' $ comps %~ (CompilationUnit h dyn False code :) $ acc
   ) <|> (tok' (Keyword KwExtern) >> ( (do
      try $ tok' (Keyword KwFn)
-     TypeT returnType <- tok isType
+     returnType <- parseType
      AtomT n <- tok isAtom
      tok' BracketL
      args <- map (\(TypeT t) -> t) <$> sepBy (tok isType) (tok' ExprSep)
@@ -54,10 +54,12 @@ hir = do
 statement =
         flip label "declaration" (do
             (t,a) <- typeAndAtom
-            assignT
-            e <- expression
-            tok' StmtSep
-            pure $ Declaration t a e
+            (try $ do
+                assignT
+                e <- expression
+                tok' StmtSep
+                pure $ Declaration t a (Just e)
+                ) <|> ((Declaration t a Nothing) <$ tok' StmtSep)
   ) <|> flip label "if construct" (do
             tok' $ Keyword KWIf
             tok' BracketL
@@ -102,9 +104,13 @@ expression1 = Fx <$> choice [
   ]
 
 typeAndAtom = do
-  TypeT t <- tok isType
+  t <- parseType
   AtomT a <- tok isAtom
-  pure(t,a)
+  pure (t,a)
+
+atomAndType = do
+  (t,a) <- typeAndAtom
+  pure (a,t)
 
 atom = do
   AtomT a <- tok isAtom
@@ -131,6 +137,16 @@ parseLabel = do
   LabelT l <- tok isLabel
   -- table <- (False <$ tok' (FlagS "v")) <|> pure True
   pure $ LabelIR l True
+
+parseType = (( try (do {TypeT t <- tok isType; pure t}) ) <?> "type literal" )
+        <|> (( try (do
+                    try $ tok' (Keyword KwStruct)
+                    tok' BlockL
+                    content <- try $ endBy1 (atomAndType) (tok' StmtSep)
+                    tok' BlockR
+                    pure $ StructType content
+                ) ) <?> "struct type" )
+               -- TODO Unions
 
 -- * Helpers
 tok :: (Token -> Bool) -> Parsec [TokenPos] () Token
