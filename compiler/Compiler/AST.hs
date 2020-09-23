@@ -118,9 +118,18 @@ offsetIn (UnionType ut) (n:ns) = find ((n==) . fst) ut >>= \(_,t) -> offsetIn t 
 -- Can't offset in type
 offsetIn _ _ = Nothing
 
+typeLabel Void = "V"
+typeLabel Num = "S"
+typeLabel Num32 = "I"
+typeLabel Float32 = "F"
+typeLabel Num64 = "J"
+typeLabel (StructType s) = "S" ++ concatMap (typeLabel . snd) s ++ "E"
+typeLabel (UnionType u) = "U" ++ concatMap (typeLabel . snd) u ++ "E"
+
 data Lit =
    Primitive Prim
  | LongLit Int32
+ | FloatLit Float
   deriving (Show, Read, Eq)
 
 -- | High level Expression information

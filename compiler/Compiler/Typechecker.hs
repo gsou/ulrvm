@@ -17,6 +17,7 @@ import Control.Monad.Except
 
 import Data.List.Split
 
+import GHC.Float (castFloatToWord32)
 {-
 instance Functor ExpRF where
   fmap = fmapDefault
@@ -67,6 +68,18 @@ typeOf (Cast typ a) = pure (Just typ)
 typeOf a = error $ "Non exhaustive pattern for typeOf : " ++ show a
 -}
 
+operatorName "==" = "EQ"
+operatorName "!=" = "NEQ"
+operatorName ">" = "GT"
+operatorName "<" = "LT"
+operatorName "+" = "ADD"
+operatorName "-" = "SUB"
+operatorName "*" = "MUL"
+operatorName "/" = "DIV"
+operatorName "%" = "MOD"
+operatorName "<=" = "LE"
+operatorName ">=" = "GE"
+
 pushExpr = cata pushExpr'
 
 pushExpr' (Atom "#") = pure Nothing
@@ -80,19 +93,38 @@ pushExpr' (Constant (Primitive (I a))) = Just Num <$ tell [InstIR $ Lit $ I a]
 pushExpr' (Constant (Primitive (P a))) = Nothing  <$ tell [InstIR $ Lit $ P a]
 pushExpr' (Constant (LongLit num)) = Just Num32  <$ tell [InstIR $ Lit $ I $ fromIntegral $ (num `shift` (-16)) .&. 0xFFFF,
                                                           InstIR $ Lit $ I $ fromIntegral $ num .&. 0xFFFF]
+pushExpr' (Constant (FloatLit fl)) = let num = castFloatToWord32 fl in
+  Just Float32 <$ tell [InstIR $ Lit $ I $ fromIntegral $ (num `shift` (-16)) .&. 0xFFFF,
+                        InstIR $ Lit $ I $ fromIntegral $ num .&. 0xFFFF]
+
 pushExpr' (UnaryOp "-" (Just Num)) = Just Num <$ tell [InstIR $ Lit (I (-1)), InstIR Mul]
+pushExpr' (UnaryOp op (Just a)) = do
+  natMap <- lift getNatives
+  let d = "__" ++ operatorName op ++ "__" ++ typeLabel a
+  case M.lookup d natMap of
+    Just (_, [t], ret) -> if a /= t
+      then throwError $ TypeMismatch t a
+      else Just ret <$ tell [CallIR d]
+    Nothing -> throwError $ OperatorType op (Just a) Nothing
 pushExpr' (UnaryOp o a) = throwError $ OperatorType o a Nothing
 pushExpr' (BinaryOp (Just Num) "==" (Just Num)) = Just Num <$ tell [InstIR Eq]
 pushExpr' (BinaryOp (Just Num) "!=" (Just Num)) = Just Num <$ tell [InstIR Neq]
 pushExpr' (BinaryOp (Just Num) ">"  (Just Num)) = Just Num <$ tell [InstIR Gt]
 pushExpr' (BinaryOp (Just Num) "<"  (Just Num)) = Just Num <$ tell [InstIR Lt]
 pushExpr' (BinaryOp (Just Num) "+"  (Just Num)) = Just Num <$ tell [InstIR Add]
--- TODO num64 functions
--- TODO num32 functions
 pushExpr' (BinaryOp (Just Num) "-"  (Just Num)) = Just Num <$ tell [InstIR Sub]
 pushExpr' (BinaryOp (Just Num) "*"  (Just Num)) = Just Num <$ tell [InstIR Mul]
 pushExpr' (BinaryOp (Just Num) "/"  (Just Num)) = Just Num <$ tell [InstIR Divmod, InstIR Drop]
 pushExpr' (BinaryOp (Just Num) "%"  (Just Num)) = Just Num <$ tell [InstIR Divmod, InstIR Swap, InstIR Drop]
+pushExpr' (BinaryOp (Just a) op (Just b)) = do
+  natMap <- lift getNatives
+  let d = "__" ++ operatorName op ++ "__" ++ typeLabel a ++ "_" ++ typeLabel b
+  case M.lookup d natMap of
+    Just (_, [t, u], ret) -> case (a == t, b == u) of
+      (False, _) -> throwError $ TypeMismatch t a
+      (_, False) -> throwError $ TypeMismatch u b
+      (True, True) -> Just ret <$ tell [CallIR d]
+    Nothing -> throwError $ OperatorType op (Just a) (Just b)
 pushExpr' (BinaryOp a o b) = throwError $ OperatorType o a b
 -- TODO Function dictionnary
 pushExpr' (CCall d types) = do

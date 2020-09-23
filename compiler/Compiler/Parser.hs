@@ -85,8 +85,9 @@ statement =
   ) <|> (Raw <$> expression <* tok' StmtSep)
 
 expression = Fx <$> choice [
-    try (BinaryOp <$> expression1 <*> (operator <?> "binary operator") <*> expression) <?> "binary operator application"
-  , do
+    -- try (tok' BracketL *> (unFix <$> expression) <* tok' BracketR                                                   <?> "bracketed expression")
+   try (BinaryOp <$> expression1 <*> (operator <?> "binary operator") <*> expression) <?> "binary operator application"
+  , try $ do
       TypeT t <- tok' BracketL *> tok isType <* tok' BracketR  <?> "cast"
       e <- expression
       pure $ Cast t e

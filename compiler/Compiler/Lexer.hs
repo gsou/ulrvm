@@ -74,7 +74,7 @@ rawToken =
       kwAtom
   <|> (Just (AtomT "#") <$ char '#')
   <|> try ( string "{{" >> (Just . LitBlock . ('{':) . (++"}")) <$> manyTill anyChar (try (string "}}")) )
-  <|> (string "//" >> many (noneOf "\n") >> spaces >> rawToken)
+  <|> (try (string "//") >> many (noneOf "\n") >> spaces >> rawToken)
   <|> try ( string "/*" >> manyTill anyChar (try (string "*/")) >> spaces >> rawToken )
   <|> try (char '@' *> fmap (Just . flip HookT True) atom)
   <|> try (string "@@" *> fmap (Just . flip HookT False) atom)
@@ -83,10 +83,11 @@ rawToken =
   <|> (Just BracketL <$ char '(')
   <|> (Just BracketR <$ char ')')
   <|> (Just BlockL <$ char '{')
-  <|> ((Just . Operator) <$> many1 (oneOf "+-<>?:!="))
+  <|> ((Just . Operator) <$> many1 (oneOf "+-*/<>?:!="))
   <|> (Just BlockR <$ char '}')
   <|> try ((string "0x" *> fmap (Just . ConstT . LongLit . fst . head . readHex) (many1 hexDigit)) <* oneOf "lL")
   <|> try (string "0x" *> fmap (Just . ConstT . Primitive . I . fst . head . readHex) (many1 hexDigit))
+  <|> try ((Just . ConstT . FloatLit) <$> floatNumber)
   <|> try (((Just . ConstT . LongLit) <$> number) <* oneOf "lL")
   <|> ((Just . ConstT . Primitive . I) <$> number )
   <|> (char '&' *> fmap (Just . ConstT . Primitive . P) symbol)
@@ -94,7 +95,7 @@ rawToken =
   -- End
   <|> pure Nothing
  where kwAtom = do
-         str <- (:) <$> letter <*> many (oneOf $ "_0123456789." ++ ['a'..'z'] ++ ['A'..'Z'])
+         str <- (:) <$> (oneOf $ '_' : ['a'..'z'] ++ ['A'..'Z']) <*> many (oneOf $ "_0123456789." ++ ['a'..'z'] ++ ['A'..'Z'])
          pure $ Just $ case str of
            "int" -> TypeT Num
            "int32" -> TypeT Num32
@@ -134,6 +135,7 @@ irToken = (char ':' *> fmap (Just . LabelT) symbol)
   -- <|> try (fmap (Just . FlagS) (char '=' >> symbol))
 
 number = read <$> ((:) <$> digit <*> many digit)
+floatNumber = read <$> ((\n _ m -> n ++ '.' : m) <$> many digit <*> char '.' <*> many1 digit)
 symbol = many1 alphaNum
-atom = many1 $ oneOf $ "_0123456789" ++ ['a'..'z'] ++ ['A'..'Z']
+atom = many1 $ oneOf $ "_0123456789." ++ ['a'..'z'] ++ ['A'..'Z']
 inst = (:) <$> fmap toUpper letter <*> fmap (map toLower) (many1 letter)
