@@ -26,10 +26,10 @@ parser' acc = (do
      LitBlock str <- tok isLitBlock
      parser' $ inlines %~ ((NativeSrc n (args, returnType) (Right str)):) $ acc
   ) <|> (do
-     TypeT t <- tok isType
+     t <- parseType
      AtomT n <- tok isAtom
-     LitBlock str <- tok isLitBlock
-     parser' $ inlines %~ ((NativeSrc n ([], t) (Left str)):) $ acc
+     tok' StmtSep
+     parser' $ inlines %~ ((NativeSrc n ([], t) (Left "")):) $ acc
   ))) <|> (acc <$ eof)
 {-
 parser' :: AST -> Parsec [TokenPos] () AST

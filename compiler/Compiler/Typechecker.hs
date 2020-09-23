@@ -69,10 +69,13 @@ typeOf a = error $ "Non exhaustive pattern for typeOf : " ++ show a
 
 pushExpr = cata pushExpr'
 
+pushExpr' (Atom "#") = pure Nothing
 pushExpr' (Atom s) = do
-  if s == "#"
-     then pure (Nothing)
-     else Just <$> copyAtom s
+  natMap <- lift $ getNatives
+  let d = "__get__" ++ s
+  case M.lookup d natMap of
+    Nothing -> Just <$> copyAtom s
+    Just (_, [], ret) -> Just ret <$ tell [CallIR d]
 pushExpr' (Constant (Primitive (I a))) = Just Num <$ tell [InstIR $ Lit $ I a]
 pushExpr' (Constant (Primitive (P a))) = Nothing  <$ tell [InstIR $ Lit $ P a]
 pushExpr' (Constant (LongLit num)) = Just Num32  <$ tell [InstIR $ Lit $ I $ fromIntegral $ (num `shift` (-16)) .&. 0xFFFF,
@@ -102,9 +105,19 @@ pushExpr' (CCall d types) = do
         (Just actual, expected) -> unless (actual == expected) $ throwError $ TypeMismatch expected actual
         _                       -> pure ()
       Just ret <$ tell [CallIR d]
-pushExpr' (Assign s e) = case e of
-  Just e  -> Just <$> pasteAtom s e
-  Nothing -> throwError $ CantTypeCheck $ "that assigns to " ++ s
+pushExpr' (Assign s e) = do
+  natMap <- lift $ getNatives
+  let d = "__set__" ++ s
+  case M.lookup d natMap of
+    -- TODO Assignment should not be void for native ?
+    Just (_, [t], Void) -> case e of
+      Just e -> if t == e
+        then Just Void <$ tell [CallIR d]
+        else throwError $ TypeMismatch t e
+      Nothing -> throwError $ CantTypeCheck $ "that assigns to " ++ s
+    Nothing -> case e of
+      Just e  -> Just <$> pasteAtom s e
+      Nothing -> throwError $ CantTypeCheck $ "that assigns to " ++ s
 -- TODO WARN Here
 pushExpr' (Cast typ Nothing) = pure (Just typ)
 pushExpr' (Cast typ (Just typ2)) | typ == typ2 = pure (Just typ)

@@ -18,6 +18,7 @@ data Err = CantDefSymbol String
          | DuplicateSymbol (String, String)
          | NewUnit String
          | NoSuchNative String
+         | InvalidNativeVar TypeR String
          | MissingSymbols (S.Set (String, String))
          | LinkError (String, String)
          | InvalidOp String Bool
@@ -37,6 +38,7 @@ instance Show Err where
   show (DuplicateSymbol (cu, sym)) = "Duplicate symbol " ++ sym ++ " in unit " ++ cu
   show (NewUnit u) = "Can't create new unit " ++ u ++ " due to hardware limitation."
   show (NoSuchNative u) = "Can't find native call " ++ u ++ "."
+  show (InvalidNativeVar t s) = "Can't bind native var " ++ show s ++ " with type " ++ show t
   show (MissingSymbols s) = "Missing symbols for proper recompilation: " ++ show s
   show (InvalidOp s b) = "Invalid " ++ (if b then "binary" else "unary") ++ " operator (" ++ s ++ ")"
   show (NumberOfArgError f expect actual) = "Bad number of arguments calling function " ++ f ++ " expecting " ++ show expect ++ " , got " ++ show actual ++ " "

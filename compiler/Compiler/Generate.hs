@@ -234,13 +234,40 @@ genInlines ins = do
       --   telln $ "case " ++ show (ix+1) ++ ": " ++ intercalate " " (lines code ++ ["break;"]) ++ " \\"
       --   modify ix (+2)
       --   nativeCalls %= (M.insert (name) ix)
+      NativeSrc name ([], typ) (Left "") -> -- Automatically make natives __getter__<name> and __setter__<name> and recursively for supported types
+        genGetSet typ name
       NativeSrc name (args, returnType) (Right code) -> do
          ix <- get
          lift $ telln $ "case " ++ show ix ++ ": " ++ (code ++ " break;")
          modify succ
          lift $ nativeCalls %= (M.insert name (ix, args, returnType))
     telln "} }"
-
+ where
+  -- TODO Warn when impossible to create getter/setter
+  genGetSet Num name = do
+    genGetGeneric Num name "vmLit"
+    genSetGeneric Num name "vmPop"
+  genGetSet Num32 name = do
+    genGetGeneric Num32 name "vmLit32"
+    genSetGeneric Num32 name "vmPop32"
+  genGetSet Float32 name = do
+    genGetGeneric Float32 name "vmLitFloat"
+    genSetGeneric Float32 name "vmPopFloat"
+  genGetSet (StructType st) name = do
+    forM_ st $ \(ns, typ) -> genGetSet typ (name ++ "." ++ ns)
+  genGetSet (UnionType ut) name = do
+    forM_ ut $ \(ns, typ) -> genGetSet typ (name ++ "." ++ ns)
+  genGetSet t n = throwError $ InvalidNativeVar t n
+  genGetGeneric t name lit = do
+    ix <- get
+    lift $ telln $ "case " ++ show ix ++ ": " ++ lit ++ "(vm, " ++ name ++ "); break;"
+    modify succ
+    lift $ nativeCalls %= (M.insert ("__get__" ++ name) (ix, [], t))
+  genSetGeneric t name lit = do
+    ix <- get
+    lift $ telln $ "case " ++ show ix ++ ": " ++ name ++ " = " ++ lit ++ "(vm); break;"
+    modify succ
+    lift $ nativeCalls %= (M.insert ("__set__" ++ name) (ix, [t], Void))
 -- * Helpers
 
 recompileAST :: System -- ^ The System for which to compile
