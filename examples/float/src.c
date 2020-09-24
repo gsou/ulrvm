@@ -10,17 +10,12 @@ extern fn float sqrt(float) {{ vmLitFloat(vm, sqrt(vmPopFloat(vm)));}}
 extern fn void print(float) {{ printf("%f\n", vmPopFloat(vm));}}
 
 @run
+float gethypo(float a, float b) {
+	return sqrt( (a*a) + (b*b) );
+}
 void main() {
-
-    float a = 3.0;
-    float b = 4.0;
-
-    float c = sqrt( (a * a) + (b * b) );
-
-    print(c);
+    print(gethypo(3.0, 4.0));
     print(5.0 / 2.0);
     print(100.0 - 20.0);
-
-
     return;
 }

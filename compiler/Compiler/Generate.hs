@@ -36,9 +36,10 @@ lowerHIR c = do
   pure (c {_unitIR = rewriteIR ir})
 
 lowerHIR' :: MonadCompile m => HIR -> m [IR]
-lowerHIR' (FunDef returnType s arg stmt) = fmap ((LabelIR s True :) . (pushAll (map fst arg) ++) . snd)
-        (run stmt (fromIntegral $ length arg, arg))
- where mangle t s = s
+lowerHIR' (FunDef returnType s arg stmt) = do
+       defFuncs %= M.insert s (map fst arg, returnType)
+       fmap ((LabelIR s True :) . (pushAll (map fst arg) ++) . snd) (run stmt (fromIntegral $ length arg, arg))
+ where 
        run :: (MonadCompile m) => [StatementR] -> HFState -> m (HFState, [IR])
        run stmt acc = execRWST (mapM_ genStmt stmt) (returnType, arg) acc
        genStmt :: MonadCompile m => StatementR -> HF m ()
@@ -275,7 +276,7 @@ recompileAST :: System -- ^ The System for which to compile
              -> (CompilationUnit Int16 -> R ()) -- ^ The flash action
              -> R () -- ^ Continuation
              -> Either Err (VMState, [FIR])
-recompileAST sys (AST inls cus) gen cont = runExcept $ execRWST compile' sys (VMState 0 M.empty M.empty S.empty)
+recompileAST sys (AST inls cus) gen cont = runExcept $ execRWST compile' sys (VMState 0 M.empty M.empty M.empty S.empty)
   where compile' = do
           ask >>= \sys -> nativeCalls .= (sys ^. lastNativeCalls)
           forM_ cus $ lowerHIR >=> lowerIR >=> emit >=> resolve >=> gen
@@ -285,7 +286,7 @@ compileAST :: AST -- ^ The ast currently compiled for
            -> (CompilationUnit Int16 -> F ()) -- ^ The generator
            -> F a -- ^ Continuation
            -> Either Err (VMState, String)
-compileAST (AST inls cus) gen cont = runExcept $ execRWST compile' () (VMState 0 M.empty M.empty S.empty)
+compileAST (AST inls cus) gen cont = runExcept $ execRWST compile' () (VMState 0 M.empty M.empty M.empty S.empty)
   where compile' = do
           genInlines inls
           forM_ cus $ lowerHIR >=> lowerIR >=> emit >=> resolve >=> gen
