@@ -7,10 +7,11 @@ module Flasher.CAN (
 
 import qualified System.Hardware.Serialport as S
 import Data.ByteString.Char8 (pack, unpack)
+import qualified Data.ByteString as B
 import Data.List (intercalate)
 import Data.List.Split (chunksOf)
 import Data.Bits
-import Data.Word (Word32)
+import Data.Word (Word32, Word8)
 
 import Numeric (readHex)
 
@@ -47,11 +48,21 @@ instance Reprog SerialCANAdapter where
 instance Reprog SerialCANIO where
   flash (SerialCANIO canId) (Flash ix code) = do
     forM_ (zip [0::Integer ..] code) $ \(n,v) -> do
-      putStr $ " + +" ++ show canId ++ " +6" ++ formatI16 ix ++ formatI16 n ++ formatI16 v ++ "\n"
-    putStr $ " + +" ++ show canId ++ " +2" ++ formatI16 ix ++ "\n"
+      B.putStr $ B.pack $ 0xFA : formatI32x canId ++ [0x06] ++ formatI16x ix ++ formatI16x n ++ formatI16x v ++ [0x00,0x00]
+    B.putStr $ B.pack $ 0xFA : formatI32x canId ++ [0x02] ++ formatI16x ix ++ [0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
   flash (SerialCANIO canId) (Run i) = do
+    -- TODO Switch to new protocol
     putStr $ " + +" ++ show canId ++ " +2" ++ formatI16 i ++ "\n"
 
 formatI16 :: (Show a, Num a, Bits a) => a -> String
 formatI16 i = " +" ++ show (i.&.0xFF) ++ " +" ++ show ((i `shift` (-8)).&.0xFF)
 
+formatI32x :: (Integral a, Bits a) => a -> [Word8]
+formatI32x i = [ fromIntegral $ (i `shift` (-0)) .&. 0xFF,
+                 fromIntegral $ (i `shift` (-8)) .&. 0xFF,
+                 fromIntegral $ (i `shift` (-16)) .&. 0xFF,
+                 fromIntegral $ (i `shift` (-24)) .&. 0xFF]
+
+formatI16x :: (Integral a, Bits a) => a -> [Word8]
+formatI16x i = [ fromIntegral $ (i `shift` (-0)) .&. 0xFF,
+                 fromIntegral $ (i `shift` (-8)) .&. 0xFF]
