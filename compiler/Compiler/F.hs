@@ -59,6 +59,7 @@ data VMState = VMState {
   _intGen :: Int16, -- ^ Used internally to generate symbols
   _nativeCalls :: M.Map String (Int16, [TypeR], TypeR), -- ^ Native calls allowed
   _localSymbols :: M.Map (String, String) Int16, -- ^ The local symbol table.
+  _defFuncs :: M.Map String ([TypeR], TypeR), -- ^ User defined functions
   _symbolTable :: S.Set (String, String) -- ^ The symbol table vector
   } deriving (Show, Read, Eq)
 makeLenses ''VMState

@@ -85,6 +85,7 @@ data TypeR = Num -- ^ Native word type
            | Num64 -- ^ 64 bit integer type
            | Float32 -- ^ 32 bit floating point number
            -- | FunPtr
+           | TupleType [TypeR]
            | StructType [(String, TypeR)]
            | UnionType [(String, TypeR)]
            | Void -- ^ Empty type
@@ -98,6 +99,7 @@ sizeOf Float32 = 2
 sizeOf Num64   = 4
 sizeOf (StructType s) = sum $ map (sizeOf . snd) s
 sizeOf (UnionType u) = maximum $ map (sizeOf . snd) u
+sizeOf (TupleType t) = sum $ map (sizeOf) t
 
 typeOffsetIn :: TypeR -> [String] -> Maybe (TypeR, Int)
 typeOffsetIn t str = (,) <$> typeOfIn t str <*> offsetIn t str
@@ -125,6 +127,10 @@ typeLabel Float32 = "F"
 typeLabel Num64 = "J"
 typeLabel (StructType s) = "S" ++ concatMap (typeLabel . snd) s ++ "E"
 typeLabel (UnionType u) = "U" ++ concatMap (typeLabel . snd) u ++ "E"
+typeLabel (TupleType t) = "T" ++ concatMap typeLabel t ++ "E"
+
+-- | Mangle a symbol
+mangle s ret args = "_" ++ s ++ "_" ++ typeLabel ret ++ concatMap (('_':) . typeLabel) args
 
 data Lit =
    Primitive Prim

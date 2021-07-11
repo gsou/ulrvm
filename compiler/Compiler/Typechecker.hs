@@ -130,7 +130,18 @@ pushExpr' (BinaryOp a o b) = throwError $ OperatorType o a b
 pushExpr' (CCall d types) = do
   natMap <- lift $ getNatives
   case M.lookup d natMap of
-    Nothing -> throwError $ NoSuchNative d
+    Nothing -> do
+      funcs <- lift $ use defFuncs
+      case M.lookup d funcs of
+        Just (args, ret) -> do
+          forM_ (zip [1..] $ zip args types) $ \(i, (arg, typ)) ->
+            case typ of
+              Just t -> if arg == t
+                          then pure ()
+                          else throwError $ TypeMismatch arg t
+              Nothing -> throwError $ CantTypeCheck $ "in parameter at position " ++ show i ++ " in call to function " ++ d
+          Just ret <$ tell [InstIR $ Lit $ P d, InstIR Call]
+        Nothing -> throwError $ NoSuchNative d
     Just (_, tps, ret) -> do
       unless (length types == length tps) $ throwError $ NumberOfArgError d (length tps) (length types)
       forM_ (zip types tps) $ \fff -> case fff of
